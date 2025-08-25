@@ -1,0 +1,137 @@
+// DemoApplication.java
+// これは、Spring Bootアプリケーションのメインファイルです。
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import java.util.List;
+import java.util.Optional;
+
+@SpringBootApplication
+public class DemoApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(DemoApplication.class, args);
+	}
+}
+
+// ---------------------------------------------------------------------------------------
+// 1. データモデル (Post.java)
+// ---------------------------------------------------------------------------------------
+// `@Entity` アノテーションは、このクラスがデータベースのテーブルに対応することをSpringに伝えます。
+@Entity
+class Post {
+	@Id // `@Id`は、このフィールドが主キーであることを示します。
+	@GeneratedValue(strategy = GenerationType.IDENTITY) // 主キーの自動生成方法を指定します。
+	private Long id;
+	private String title;
+	private String content;
+	private String author;
+
+	// コンストラクタ、ゲッター、セッター
+	public Post() {}
+
+	public Post(String title, String content, String author) {
+		this.title = title;
+		this.content = content;
+		this.author = author;
+	}
+
+	public Long getId() { return id; }
+	public void setId(Long id) { this.id = id; }
+	public String getTitle() { return title; }
+	public void setTitle(String title) { this.title = title; }
+	public String getContent() { return content; }
+	public void setContent(String content) { this.content = content; }
+	public String getAuthor() { return author; }
+	public void setAuthor(String author) { this.author = author; }
+}
+
+// ---------------------------------------------------------------------------------------
+// 2. リポジトリ (PostRepository.java)
+// ---------------------------------------------------------------------------------------
+// `@Repository`は、このインターフェースがデータベース操作を扱うことを示します。
+// `JpaRepository`を継承することで、基本的なCRUD操作（save, findById, findAll, deleteなど）を自動的に提供します。
+@Repository
+interface PostRepository extends JpaRepository<Post, Long> {
+}
+
+// ---------------------------------------------------------------------------------------
+// 3. コントローラー (PostController.java)
+// ---------------------------------------------------------------------------------------
+// `@RestController`は、このクラスがRESTful APIのエンドポイントであることを示します。
+@RestController
+@RequestMapping("/api/posts") // `/api/posts`へのリクエストをこのコントローラーが処理します。
+class PostController {
+
+	@Autowired // Springが`PostRepository`のインスタンスを自動的に注入します。
+	private PostRepository postRepository;
+
+	// すべての投稿を取得するエンドポイント
+	// GET: /api/posts
+	@GetMapping
+	public List<Post> getAllPosts() {
+		return postRepository.findAll();
+	}
+
+	// 新しい投稿を作成するエンドポイント
+	// POST: /api/posts
+	@PostMapping
+	public Post createPost(@RequestBody Post post) {
+		return postRepository.save(post);
+	}
+
+	// 指定されたIDの投稿を取得するエンドポイント
+	// GET: /api/posts/{id}
+	@GetMapping("/{id}")
+	public Optional<Post> getPostById(@PathVariable Long id) {
+		return postRepository.findById(id);
+	}
+
+	// 投稿を更新するエンドポイント
+	// PUT: /api/posts/{id}
+	@PutMapping("/{id}")
+	public Post updatePost(@PathVariable Long id, @RequestBody Post postDetails) {
+		Post post = postRepository.findById(id).orElseThrow(() -> new RuntimeException("Post not found"));
+		post.setTitle(postDetails.getTitle());
+		post.setContent(postDetails.getContent());
+		post.setAuthor(postDetails.getAuthor());
+		return postRepository.save(post);
+	}
+
+	// 投稿を削除するエンドポイント
+	// DELETE: /api/posts/{id}
+	@DeleteMapping("/{id}")
+	public void deletePost(@PathVariable Long id) {
+		postRepository.deleteById(id);
+	}
+}
+
+// ---------------------------------------------------------------------------------------
+// 4. 設定ファイル (src/main/resources/application.properties)
+// ---------------------------------------------------------------------------------------
+// 以下の設定を`src/main/resources/application.properties`ファイルに記述してください。
+// これにより、アプリケーション起動時にH2データベースが有効になります。
+/*
+# H2データベースを有効化し、ブラウザからコンソールにアクセスできるようにします。
+spring.h2.console.enabled=true
+
+# H2データベースの接続設定（インメモリモード）
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+
+# JPAとHibernateの設定
+# `ddl-auto=update`は、エンティティに基づいてデータベーススキーマを自動的に更新します。
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.jpa.hibernate.ddl-auto=update
+*/

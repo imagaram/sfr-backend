@@ -1,0 +1,342 @@
+ 評議員制度でやりたいことの整理（目的・ユースケース）：
+・評議員は最大6名
+・キャラクター単位で任命
+・sfr.tokyo開始年度は私が任命した２名の方に評議員を担当してもらいます（私を含めて3名）。任期は特別に３年。
+・最初の選挙はsfr.tokyoサービス開始年の９か月たった時に選挙戦スタート。３か月の選挙戦の最終日に投開票。
+・任期は２年。一年ごとに２名追加。再任可。
+・評議員は偶数。多数決の論理は時代遅れ。
+・意見が割れた事案はAIと運営が判断
+・自薦選挙制。sfr.tokyo運営が選挙コミュニティを立ち上げ選挙開始。自薦者はコミュニティ上で公約を発表。コミュニティに集まった質問に答える形で支持を訴える。
+・投票は決められた期間に１ユーザー当たり１票投票する。
+・評議員への報酬はsfr.tokyoが発行する暗号資産が付与される
+・報酬量は暗号資産SFRの流通量や対円レートなどを勘案して、AIと運営で決定する。
+・例えば、選挙公示内容に「報酬：対円レート300万円～500万円」と明示して評議員を募集する
+
+評議員が運営に関与する範囲：
+・評議員という名前が大げさだが、自治会や組合みたいなもの
+・運営母体はあくまでも合同会社喫茶SMiLEであり、評議員は運営を拘束したり規制監督するものではない
+・sfr.tokyo内でおこった誹謗中傷や利用規約違反の事案に対する対処
+・運営が決めた予算内で社会貢献事業選定
+・sfr.tokyoの機能改善についての提言とりまとめ
+
+ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+ファイルの目的（GitHub Copilot Pro向け）
+
+このファイルは、sfr.tokyoにおける評議員制度の制度設計・技術設計を体系的に記述したものです。 GitHub Copilot Proがsfr-backendの開発支援を行う際に、DBスキーマ設計やAPI設計の参照元として活用できるよう、構造化された定義・ロジック・制度的背景を含めて記述しています。
+
+評議員制度の目的とユースケース
+
+評議員は最大6名まで任命される。
+
+キャラクター単位で任命される。
+
+sfr.tokyo開始年度には、運営者が任命した2名（運営者自身を含めて計3名）が評議員を担当。任期は特別に3年。
+
+最初の選挙はサービス開始から9か月後にスタートし、3か月間の選挙戦を経て投開票。
+
+通常の任期は2年。毎年2名ずつ追加され、再任も可能。
+
+評議員数は偶数に設定。多数決による意思決定は採用しない。
+
+意見が割れた場合は、AIと運営が判断を下す。
+
+自薦選挙制を採用。sfr.tokyo運営が選挙コミュニティを立ち上げ、自薦者は公約を発表し、コミュニティ内の質問に答える形で支持を訴える。
+
+投票は定められた期間内に、1ユーザーにつき1票を投じる。
+
+評議員への報酬は、sfr.tokyoが発行する暗号資産SFRで支払われる。
+
+報酬額はSFRの流通量や対円レートなどを考慮し、AIと運営が決定。
+
+例：選挙公示に「報酬：対円レート300万円～500万円」と明示して募集。
+
+評議員の運営関与範囲
+
+評議員はsfr.tokyoの自治的な意思形成を担う役割を持ち、名称はその理念を示すものとして用いられる。
+
+運営母体は合同会社喫茶SMiLEであり、評議員は運営を拘束・監督する立場ではない。
+
+sfr.tokyo内で発生した誹謗中傷や利用規約違反への対処。
+
+運営が定めた予算内での社会貢献事業の選定。
+
+sfr.tokyoの機能改善に関する提言のとりまとめ。
+
+設計意図コメント（GitHub Copilot Pro向け）
+
+// 評議員制度は摂関政治モデルに着想を得ており、AIが摂政、評議員が関白、運営が最終承認者として機能する。
+// この構造により、多数決を排した柔軟な意思形成と最終責任の明確化を両立している。
+
+評議員制度の構造化定義
+
+報酬決定ロジックとPoAチェーンの連携（報酬記録の確定条件）
+
+interface CouncilRewardRecord {
+  councilId: string;
+  baseReward: number;
+  finalReward: number;
+  evaluation: CouncilEvaluation;
+  commentHash: string; // 寸評のハッシュ値（Merkle leaf）
+}
+
+function finalizeRewardRecord(
+  record: CouncilRewardRecord,
+  merkleRoot: string,
+  block: Block
+): boolean {
+  const isValidComment = verifyCommentIntegrity(
+    record.evaluation.councilComment,
+    merkleRoot,
+    block.rewardRecords.map(r => ({
+      councilId: r.councilId,
+      comment: r.evaluation.councilComment
+    }))
+  );
+  return isValidComment;
+}
+
+CouncilRewardRecord に報酬の算定根拠（評価・寸評）を格納
+
+寸評は commentHash としてハッシュ化し、Merkle rootで改ざん防止
+
+finalizeRewardRecord 関数で、PoAブロック内のMerkle rootと照合して正当性を検証
+
+この設計により、報酬記録はPoAチェーン上で制度的に確定されたものとして扱われ、後からの改ざんや不正を防止できます。
+
+選挙フェーズの状態遷移
+
+type ElectionPhase =
+  | 'PRE_ELECTION'      // 選挙準備期間（公約発表・質疑応答）
+  | 'VOTING'            // 投票期間
+  | 'COUNTING'          // 開票・集計期間
+  | 'POST_ELECTION';   // 結果発表・任命処理
+
+interface ElectionState {
+  phase: ElectionPhase;
+  startDate: Date;
+  endDate: Date;
+  candidates: Candidate[];
+  votes: Vote[];
+}
+
+報酬レンジの算定式
+
+interface RewardRange {
+  minJPY: number;
+  maxJPY: number;
+}
+
+function calculateRewardRange(
+  sfrSupply: number,
+  sfrToJPYRate: number
+): RewardRange {
+  const base = sfrSupply * sfrToJPYRate;
+  const min = base * 0.03; // 最低報酬：流通量の3%相当
+  const max = base * 0.05; // 最高報酬：流通量の5%相当
+  return { minJPY: Math.floor(min), maxJPY: Math.floor(max) };
+}
+
+評議員のロール定義
+
+type CouncilRole =
+  | 'COMMUNITY_MEDIATOR'   // 誹謗中傷・規約違反への対応
+  | 'SOCIAL_PROJECT_REVIEWER' // 社会貢献事業の選定
+  | 'FUNCTION_IMPROVEMENT_ADVISOR'; // 機能改善提言
+
+interface CouncilMember {
+  id: string;
+  characterId: string;
+  roles: CouncilRole[];
+  termStart: Date;
+  termEnd: Date;
+  isReelected: boolean;
+}
+
+候補者の公約構造
+
+interface CandidateManifesto {
+  candidateId: string;         // 候補者ID（キャラクターIDと紐づけ可能）
+  title: string;               // 公約のタイトル
+  summary: string;             // 公約の要約（1〜2文程度）
+  details: string[];           // 公約の詳細（箇条書き形式）
+  communityQuestions: {
+    question: string;
+    answer: string;
+  }[];                         // コミュニティからの質問と回答
+  publishedAt: Date;           // 公約発表日時
+  endorsements: string[];      // 支持者（キャラクター名や団体名）
+}
+
+投票ロジック定義
+
+interface Vote {
+  voterId: string;         // 投票者のユーザーID
+  candidateId: string;     // 投票先の候補者ID
+  timestamp: Date;         // 投票日時
+}
+
+function isEligibleToVote(
+  voterId: string,
+  votes: Vote[],
+  sfrBalance: number,
+  activityScore: number,
+  electionState: ElectionState
+): boolean {
+  const hasAlreadyVoted = votes.some(v => v.voterId === voterId);
+  const isVotingPeriod = electionState.phase === 'VOTING';
+  const hasSufficientBalance = sfrBalance >= 1; // 例：最低1SFR保有
+  const isActiveUser = activityScore >= 50;     // 例：アクティビティスコアが50以上
+
+  return isVotingPeriod && !hasAlreadyVoted && hasSufficientBalance && isActiveUser;
+}
+
+function lockVotesAfterDeadline(
+  electionState: ElectionState,
+  currentTime: Date
+): boolean {
+  return currentTime > electionState.endDate;
+}
+
+候補者比較ダッシュボード構造
+
+interface CandidateComparison {
+  candidateId: string;
+  manifestoSummary: string;
+  answersToCouncilQuestions: {
+    questionId: string;
+    questionText: string;
+    answerText: string;
+  }[];
+  endorsements: string[];
+}
+
+評議員報酬算出ロジック（評価決定時）
+
+interface CouncilEvaluation {
+  userScore: number;     // ユーザーからの評価（0〜100）
+  councilScore: number;  // 他評議員からの評価（0〜100）
+  councilComment: string; // 寸評
+  adminScore: number;    // 運営からの評価（0〜100）
+}
+
+function calculateFinalReward(
+  baseReward: number,
+  evaluation: CouncilEvaluation
+): number {
+  const weightedScore =
+    evaluation.userScore * 0.4 +
+    evaluation.councilScore * 0.3 +
+    evaluation.adminScore * 0.3;
+  return Math.floor(baseReward * (weightedScore / 100));
+}
+
+評議員評価収集フロー
+
+interface EvaluationItem {
+  itemId: string;
+  label: string;
+  description: string;
+}
+
+interface UserEvaluationInput {
+  councilId: string;
+  itemScores: { itemId: string; score: number }[];
+}
+
+interface CouncilPeerEvaluation {
+  councilId: string;
+  evaluatorId: string;
+  score: number; // 0〜100
+  comment: string; // 寸評
+}
+
+interface AdminEvaluation {
+  councilId: string;
+  score: number; // 0〜100
+}
+
+function collectUserEvaluationItems(
+  councilId: string,
+  oneYearAfterTermStart: Date
+): EvaluationItem[] {
+  // 評議員着任から1年後に、ユーザーが評価項目を提案するフェーズ
+  // UI補助：テンプレート例を提示し、選択式＋自由記述を併用
+  // 例：
+  // - 「sfr.tokyoへの貢献度」
+  // - 「コミュニティとの対話姿勢」
+  // - 「提言の具体性と実現性」
+  return []; // UIで収集
+}
+
+function collectUserEvaluations(
+  councilId: string,
+  termEndDate: Date
+): UserEvaluationInput[] {
+  // 任期満了日から14日間でユーザーが評価
+  return []; // UIで収集
+}
+
+function collectCouncilPeerEvaluations(
+  councilId: string,
+  termEndDate: Date
+): CouncilPeerEvaluation[] {
+  // 任期満了日から14日間で他評議員が評価（80点が目安ライン）
+  // UI補助：寸評テンプレート例を提示し、選択式＋自由記述を併用
+  // 例：
+  // - 「sfr.tokyoへの献身性が高く、信頼できる」
+  // - 「議論の場で冷静かつ建設的だった」
+  // - 「提言の質が高く、実行力もあった」
+  return []; // UIで収集
+}
+
+function collectAdminEvaluation(
+  councilId: string,
+  termEndDate: Date
+): AdminEvaluation {
+  // 任期満了日から14日間で運営が評価（80点が目安ライン）
+  return { councilId, score: 0 };
+}
+
+PoAチェーン記録モデル（ハイブリッド構成）
+
+interface BlockSignature {
+  councilId: string;
+  signature: string;
+}
+
+type Block = {
+  index: number;
+  timestamp: Date;
+  summaries: ElectionSummary[];
+  rewardRecords: CouncilRewardRecord[];
+  previousHash: string;
+  hash: string;
+  signatures: BlockSignature[]; // 評議員連名署名
+  validator: string; // PoAバリデーターID
+  commentMerkleRoot: string; // 評価コメントのMerkle root
+};
+
+function validateBlock(
+  block: Block,
+  validatorList: string[]
+): boolean {
+  return validatorList.includes(block.validator);
+}
+
+function finalizeBlock(
+  block: Block,
+  councilSignatures: BlockSignature[],
+  requiredCouncilCount: number,
+  adminOverride: boolean
+): boolean {
+  const hasEnoughSignatures = councilSignatures.length >= requiredCouncilCount;
+  return hasEnoughSignatures || adminOverride;
+}
+
+評価制度に関する今後の検討項目
+
+評価テンプレートの多言語対応（英語・日本語の切り替え）
+
+評価結果の可視化UI（レーダーチャートやヒートマップ）
+
+評議員へのフィードバック通知設計（寸評をどう届けるか）

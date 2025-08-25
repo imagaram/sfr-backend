@@ -1,0 +1,2148 @@
+openapi: 3.0.0
+info:
+  title: SFR Crypto Asset API
+  description: |
+    🪙 **SFR (Soundtrack For Revolution) 暗号資産管理API**
+    
+    SFR暗号資産の発行、徴収、管理、ガバナンス機能を提供するREST APIです。
+    
+    ## 主要機能
+    - 💰 **トークン発行**: 教育・創作活動への報酬発行
+    - 💸 **トークン徴収**: AI判断による動的徴収システム
+    - 🗳️ **ガバナンス**: 評議員制度による意思決定
+    - 📊 **統計・分析**: 流通量・発行量の監視
+    - 🔍 **監査機能**: 全取引の追跡・ログ管理
+    JWTトークンによる認証が必要です。ヘッダーに `Authorization: Bearer {token}` を含めてください。
+    
+  version: 1.0.0
+  contact:
+    name: SFR.TOKYO Development Team
+    email: dev@sfr.tokyo
+  license:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+    url: https://opensource.org/licenses/MIT
+                  type: number
+                  minimum: 0
+                  maximum: 1
+servers:
+  - url: https://api.sfr.tokyo/v1
+    description: Production server
+  - url: https://staging-api.sfr.tokyo/v1
+    description: Staging server
+  - url: http://localhost:8080/api/v1
+    description: Development server
+            rounding_mode:
+              type: string
+              enum: [TRUNCATE_DOWN]
+              description: 小数計算時の丸め方針 (現在は常に切り捨て)
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Token Management
+              type: string
+              enum: [v1]
+  - name: Rewards
+    description: 報酬発行・分配システム
+  - name: Collections
+    description: トークン徴収・バーン機能
+  - name: Governance
+    description: ガバナンス・評議員機能
+  - name: Statistics
+    description: 統計・分析・レポート
+  - name: Oracle
+    description: 外部データフィード
+  - name: Audit
+    description: 監査・ログ機能
+
+paths:
+  # ==================== Token Management ====================
+  /sfr/balance/{user_id}:
+    get:
+      tags: [Token Management]
+      summary: ユーザー残高照会
+      description: 指定ユーザーのSFR残高と取引履歴サマリーを取得
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ユーザーID
+      responses:
+        '200':
+          description: 残高情報取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserBalance'
+        '404':
+          description: ユーザーが見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sfr/balance/{user_id}/history:
+    get:
+      tags: [Token Management]
+      summary: 残高変動履歴取得
+      description: |
+        ユーザーの残高変動履歴を取得（ページネーション対応）
+        NOTE: 互換レイヤーでは内部統一方針に合わせ 0 始まりの page_index / page_size を採用。
+              レスポンスの pagination.page は 1 始まりで表示互換を維持。
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page_index
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: 0 始まりページ番号 (UI 表示は +1 の 1 始まり)
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: 1 ページ件数 (1〜100)
+        - name: transaction_type
+          in: query
+          schema:
+            type: string
+            enum: [EARN, SPEND, COLLECT, BURN, TRANSFER]
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 履歴取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceHistoryResponse'
+
+  /sfr/transfer:
+    post:
+      tags: [Token Management]
+      summary: SFR送金
+      description: ユーザー間でSFRトークンを送金
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '200':
+          description: 送金成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+        '400':
+          description: 送金失敗（残高不足など）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== Rewards ====================
+  /sfr/rewards/issue:
+    post:
+      tags: [Rewards]
+      summary: 報酬発行
+      description: |-
+        ユーザーの活動・評価スコアに基づいてSFR報酬を発行。
+        現行フォーミュラ(互換層実装準拠 / 将来変更可):
+          combined_score = activity_score * 0.5 + evaluation_score * 20 * 0.5
+          reward_amount = combined_score / 500  (結果は 8 桁小数で切り捨て)
+        evaluation_score は 1.0–5.0 を 20 倍して activity_score スケール (0–100) に正規化。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RewardIssueRequest'
+      responses:
+        '200':
+          description: 報酬発行成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardIssueResponse'
+        '400':
+          description: 発行失敗（プール不足など）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sfr/rewards/calculate:
+    post:
+      tags: [Rewards]
+      summary: 報酬計算シミュレーション
+      description: |-
+        実際の発行前に報酬額を計算（シミュレーション）。
+        計算式(互換層):
+          combined_score = activity_score * 0.6 + evaluation_score * 20 * 0.4
+          estimated_reward = combined_score / 1000  (8 桁小数で切り捨て)
+        重み/除数は互換レイヤー定数として管理され将来調整可。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RewardCalculateRequest'
+      responses:
+        '200':
+          description: 計算成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardCalculateResponse'
+
+  /sfr/rewards/daily-distribution:
+    post:
+      tags: [Rewards]
+      summary: 日次報酬分配実行
+      description: その日の全対象ユーザーに対して一括報酬分配を実行
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyDistributionRequest'
+      responses:
+        '200':
+          description: 分配成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyDistributionResponse'
+
+  /sfr/rewards/history/{user_id}:
+    get:
+      tags: [Rewards]
+      summary: ユーザー報酬履歴
+      description: 指定ユーザーの報酬受給履歴を取得
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 1始まりページ番号
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: 1ページ件数 (1〜50)
+        - name: limit
+          in: query
+          deprecated: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: 廃止予定。page_size を使用してください。
+      responses:
+        '200':
+          description: 履歴取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardHistoryResponse'
+
+  # ==================== Collections ====================
+  /sfr/collections/collect:
+    post:
+      tags: [Collections]
+      summary: トークン徴収実行
+      description: 指定ユーザーからSFRトークンを徴収
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectionRequest'
+      responses:
+        '200':
+          description: 徴収成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionResponse'
+        '400':
+          description: 徴収失敗
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sfr/collections/monthly-collection:
+    post:
+      tags: [Collections]
+      summary: 月次一括徴収実行
+      description: 徴収対象の全ユーザーから一括でトークンを徴収
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonthlyCollectionRequest'
+      responses:
+        '200':
+          description: 一括徴収成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyCollectionResponse'
+
+  /sfr/collections/burn-decision:
+    post:
+      tags: [Collections]
+      summary: AI バーン判断実行
+      description: AIによるトークンバーン/リザーブ判断を実行
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BurnDecisionRequest'
+      responses:
+        '200':
+          description: AI判断実行成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BurnDecisionResponse'
+
+  /sfr/collections/history:
+    get:
+      tags: [Collections]
+      summary: 徴収履歴取得
+      description: システム全体の徴収履歴を取得
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 1始まりページ番号
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: 1ページ件数 (1〜100)
+        - name: limit
+          in: query
+          deprecated: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: 廃止予定。page_size を使用してください。
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: destination
+          in: query
+          schema:
+            type: string
+            enum: [BURN, RESERVE, REDISTRIBUTE]
+      responses:
+        '200':
+          description: 履歴取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionHistoryResponse'
+
+  # ==================== Governance ====================
+  /sfr/governance/council/members:
+    get:
+      tags: [Governance]
+      summary: 現在の評議員一覧
+      description: 現在活動中の評議員リストを取得
+      responses:
+        '200':
+          description: 評議員一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouncilMembersResponse'
+
+  /sfr/governance/council/appoint:
+    post:
+      tags: [Governance]
+      summary: 評議員任命
+      description: 新しい評議員を任命
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CouncilAppointRequest'
+      responses:
+        '200':
+          description: 任命成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouncilAppointResponse'
+
+  /sfr/governance/proposals:
+    get:
+      tags: [Governance]
+      summary: 提案一覧取得
+      description: 提案の一覧を取得（フィルタリング・ページネーション対応）
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, VOTING, PASSED, REJECTED, EXPIRED]
+        - name: proposal_type
+          in: query
+          schema:
+            type: string
+            enum: [POLICY, PARAMETER, FEATURE, GOVERNANCE]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 1始まりページ番号
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: 1ページ件数 (1〜50)
+        - name: limit
+          in: query
+          deprecated: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: 廃止予定。page_size を使用してください。
+      responses:
+        '200':
+          description: 提案一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProposalsResponse'
+
+    post:
+      tags: [Governance]
+      summary: 新提案作成
+      description: 新しいガバナンス提案を作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProposalRequest'
+      responses:
+        '201':
+          description: 提案作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateProposalResponse'
+
+  /sfr/governance/proposals/{proposal_id}:
+    get:
+      tags: [Governance]
+      summary: 提案詳細取得
+      description: 指定提案の詳細情報を取得
+      parameters:
+        - name: proposal_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 提案詳細取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProposalDetail'
+
+  /sfr/governance/proposals/{proposal_id}/vote:
+    post:
+      tags: [Governance]
+      summary: 提案投票
+      description: 指定提案に対して投票
+      parameters:
+        - name: proposal_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoteRequest'
+      responses:
+        '200':
+          description: 投票成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoteResponse'
+
+  /sfr/governance/votes/{user_id}:
+    get:
+      tags: [Governance]
+      summary: ユーザー投票履歴
+      description: 指定ユーザーの投票履歴を取得
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: 1始まりページ番号
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: 1ページ件数 (1〜50)
+        - name: limit
+          in: query
+          deprecated: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+          description: 廃止予定。page_size を使用してください。
+      responses:
+        '200':
+          description: 投票履歴取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserVotesResponse'
+
+  # ==================== Statistics ====================
+  /sfr/stats/overview:
+    get:
+      tags: [Statistics]
+      summary: SFR統計概要
+      description: SFRトークンの流通量、発行量、ホルダー数などの統計概要
+      responses:
+        '200':
+          description: 統計概要取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsOverview'
+
+  /sfr/stats/circulation:
+    get:
+      tags: [Statistics]
+      summary: 流通量統計
+      description: 日次・月次の流通量推移データ
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+            default: daily
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+      responses:
+        '200':
+          description: 流通量統計取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CirculationStats'
+
+  /sfr/stats/rewards:
+    get:
+      tags: [Statistics]
+      summary: 報酬統計
+      description: 期間別の報酬発行統計
+      parameters:
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: group_by
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: day
+      responses:
+        '200':
+          description: 報酬統計取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardStats'
+
+  /sfr/stats/top-holders:
+    get:
+      tags: [Statistics]
+      summary: 上位ホルダー
+      description: SFR保有量上位ユーザーランキング
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: 上位件数 (将来的に page_size へ統一予定)
+      responses:
+        '200':
+          description: 上位ホルダー取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopHoldersResponse'
+
+  # ==================== Oracle ====================
+  /sfr/oracle/feeds:
+    get:
+      tags: [Oracle]
+      summary: Oracle データフィード一覧
+      description: 外部データフィードの最新情報を取得
+      parameters:
+        - name: source
+          in: query
+          schema:
+            type: string
+        - name: data_type
+          in: query
+          schema:
+            type: string
+            enum: [PRICE, VOLUME, LIQUIDITY, RATE]
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: 1ページ件数 (1〜100)
+        - name: limit
+          in: query
+          deprecated: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: 廃止予定。page_size を使用してください。
+      responses:
+        '200':
+          description: Oracle データ取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OracleFeedsResponse'
+
+    post:
+      tags: [Oracle]
+      summary: Oracle データ更新
+      description: 外部データフィードを更新
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OracleFeedUpdateRequest'
+      responses:
+        '200':
+          description: データ更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OracleFeedUpdateResponse'
+
+  # ==================== Audit ====================
+  /sfr/audit/parameters:
+    get:
+      tags: [Audit]
+      summary: システムパラメータ一覧
+      description: 現在のシステムパラメータ設定値を取得
+      responses:
+        '200':
+          description: パラメータ一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemParametersResponse'
+
+  /sfr/audit/parameters/{parameter_name}:
+    put:
+      tags: [Audit]
+      summary: システムパラメータ更新
+      description: 指定システムパラメータの値を更新
+      parameters:
+        - name: parameter_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParameterUpdateRequest'
+      responses:
+        '200':
+          description: パラメータ更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParameterUpdateResponse'
+
+  /sfr/audit/adjustments:
+    get:
+      tags: [Audit]
+      summary: パラメータ調整ログ
+      description: システムパラメータの変更履歴を取得
+      parameters:
+        - name: parameter_name
+          in: query
+          schema:
+            type: string
+        - name: trigger_type
+          in: query
+          schema:
+            type: string
+            enum: [MANUAL, AUTO_AI, ORACLE, GOVERNANCE]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 調整ログ取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdjustmentLogsResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ==================== Base Schemas ====================
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: エラーコード (例: BAD_REQUEST, VALIDATION_ERROR, NOT_FOUND)
+        message:
+          type: string
+          description: エラーメッセージ概要
+        details:
+          oneOf:
+            - type: array
+              description: フィールド単位のバリデーション詳細 (VALIDATION_ERROR 時)
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+                required: [field, message]
+            - type: object
+              description: その他任意の追加メタ情報
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          description: リクエストパス
+      required: [error, message, timestamp]
+  # NOTE: details は実装で Object 型: バリデーション時は [{field,message}] 配列、それ以外 null または将来的に拡張オブジェクト
+
+    PaginationInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+          description: クライアント入力は page_size (0 始まり page_index と併用) を受け取り内部で limit にマッピング
+        total_pages:
+          type: integer
+          minimum: 0
+        total_count:
+          type: integer
+          minimum: 0
+        has_next:
+          type: boolean
+        has_previous:
+          type: boolean
+      required: [page, limit, total_pages, total_count, has_next, has_previous]
+
+    # ==================== Token Management ====================
+    UserBalance:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        current_balance:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 現在残高（8桁小数）
+        total_earned:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 累計獲得額
+        total_spent:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 累計使用額
+        total_collected:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 累計徴収額
+        last_collection_date:
+          type: string
+          format: date
+          nullable: true
+        collection_exempt:
+          type: boolean
+          description: 徴収免除フラグ
+        frozen:
+          type: boolean
+          description: 残高凍結フラグ
+        updated_at:
+          type: string
+          format: date-time
+      required: [user_id, current_balance, total_earned, total_spent, total_collected, collection_exempt, frozen, updated_at]
+
+    BalanceHistory:
+      type: object
+      properties:
+        history_id:
+          type: string
+        user_id:
+          type: string
+          format: uuid
+        transaction_type:
+          type: string
+          enum: [EARN, SPEND, COLLECT, BURN, TRANSFER]
+        amount:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        balance_before:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        balance_after:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        reason:
+          type: string
+          maxLength: 100
+        reference_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required: [history_id, user_id, transaction_type, amount, balance_before, balance_after, reason, created_at]
+
+    BalanceHistoryResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BalanceHistory'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+      required: [data, pagination]
+
+    TransferRequest:
+      type: object
+      properties:
+        from_user_id:
+          type: string
+          format: uuid
+        to_user_id:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          pattern: '^\d+\.\d{1,8}$'
+          description: 1〜8桁の小数 (内部は切り捨てで8桁に正規化)
+        reason:
+          type: string
+          maxLength: 100
+        note:
+          type: string
+          maxLength: 500
+          nullable: true
+      required: [from_user_id, to_user_id, amount, reason]
+
+    TransferResponse:
+      type: object
+      properties:
+        transfer_id:
+          type: string
+        from_user_id:
+          type: string
+          format: uuid
+        to_user_id:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 8桁固定小数表示 (1〜8桁入力を内部で 8 桁に正規化しゼロパディング)
+        from_balance_after:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 送金後送金者残高 (8桁固定)
+        to_balance_after:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 送金後受取者残高 (8桁固定)
+        processed_at:
+          type: string
+          format: date-time
+      required: [transfer_id, from_user_id, to_user_id, amount, from_balance_after, to_balance_after, processed_at]
+
+    # ==================== Rewards ====================
+    RewardIssueRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        activity_score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: 活動スコア (0〜100)
+        evaluation_score:
+          type: number
+          format: double
+          minimum: 1.0
+          maximum: 5.0
+          description: 評価スコア (1.0〜5.0)
+        reward_reason:
+          type: string
+          maxLength: 200
+        force_issue:
+          type: boolean
+          default: false
+          description: プール不足でも強制発行するか
+      required: [user_id, activity_score, evaluation_score, reward_reason]
+
+    RewardIssueResponse:
+      type: object
+      properties:
+        reward_id:
+          type: string
+        user_id:
+          type: string
+          format: uuid
+        reward_amount:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 発行報酬額 (8桁固定小数, formula: (activity_score*0.5 + evaluation_score*20*0.5)/500 切り捨て後ゼロパディング)
+        pool_date:
+          type: string
+          format: date
+        combined_score:
+          type: number
+          format: double
+        total_pool_score:
+          type: number
+          format: double
+        calculation_details:
+          type: object
+          description: 計算詳細
+          properties:
+            activity_score:
+              type: number
+              format: double
+              description: 入力 activity_score (0-100)
+            evaluation_score:
+              type: number
+              format: double
+              description: 入力 evaluation_score (1.0-5.0)
+            normalized_evaluation_score:
+              type: number
+              format: double
+              description: evaluation_score * 20 による 20-100 スケール正規化値
+            weights:
+              type: object
+              properties:
+                activity:
+                  type: number
+                evaluation:
+                  type: number
+            divisors:
+              type: object
+              properties:
+                calculate:
+                  type: integer
+                issue:
+                  type: integer
+            combined_before_divisor:
+              type: number
+              format: double
+              description: 重み適用後 (まだ除数で割る前) の合算スコア
+            formula_version:
+              type: string
+          required: [activity_score, evaluation_score, normalized_evaluation_score, weights, divisors, combined_before_divisor, formula_version]
+        issued_at:
+          type: string
+          format: date-time
+      required: [reward_id, user_id, reward_amount, pool_date, combined_score, total_pool_score, issued_at]
+
+    RewardCalculateRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        activity_score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: 活動スコア (0〜100)
+        evaluation_score:
+          type: number
+          format: double
+          minimum: 1.0
+          maximum: 5.0
+          description: 評価スコア (1.0〜5.0)
+        target_date:
+          type: string
+          format: date
+          nullable: true
+          description: 計算対象日（指定なしは当日）
+      required: [user_id, activity_score, evaluation_score]
+
+    RewardCalculateResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        estimated_reward:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: シミュレーションのみで実際未付与の推定値 (8桁固定, formula: (act*0.6 + eval*20*0.4)/1000)
+        combined_score:
+          type: number
+          format: double
+        current_pool_total:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 計算時点のプール総量 (8桁固定)
+        current_pool_remaining:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 推定報酬仮引当後の残量 (8桁固定)
+        total_participants:
+          type: integer
+        calculation_details:
+          type: object
+          description: 計算詳細
+          properties:
+            activity_score:
+              type: number
+              format: double
+            evaluation_score:
+              type: number
+              format: double
+            normalized_evaluation_score:
+              type: number
+              format: double
+              description: evaluation_score * 20
+            weights:
+              type: object
+              properties:
+                activity:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                evaluation:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+            divisors:
+              type: object
+              properties:
+                calculate:
+                  type: integer
+                issue:
+                  type: integer
+            combined_before_divisor:
+              type: number
+              format: double
+              description: 除数適用前スコア (act*0.6 + eval*20*0.4)
+            formula_version:
+              type: string
+              enum: [v1]
+            rounding_mode:
+              type: string
+              enum: [TRUNCATE_DOWN]
+              description: 小数計算時の丸め方針 (現在は常に切り捨て)
+          required: [activity_score, evaluation_score, normalized_evaluation_score, weights, divisors, combined_before_divisor, formula_version]
+      required: [user_id, estimated_reward, combined_score, current_pool_total, current_pool_remaining, total_participants]
+
+    DailyDistributionRequest:
+      type: object
+      properties:
+        target_date:
+          type: string
+          format: date
+        dry_run:
+          type: boolean
+          default: false
+          description: 実行前テストモード
+        force_redistribution:
+          type: boolean
+          default: false
+          description: 既に分配済みでも再分配するか
+      required: [target_date]
+
+    DailyDistributionResponse:
+      type: object
+      properties:
+        target_date:
+          type: string
+          format: date
+        total_participants:
+          type: integer
+        total_distributed:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        average_reward:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        distribution_details:
+          type: array
+          items:
+            type: object
+            properties:
+              user_id:
+                type: string
+                format: uuid
+              reward_amount:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              combined_score:
+                type: number
+                format: double
+        processed_at:
+          type: string
+          format: date-time
+      required: [target_date, total_participants, total_distributed, average_reward, distribution_details, processed_at]
+
+    RewardHistoryResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              reward_id:
+                type: string
+              pool_date:
+                type: string
+                format: date
+              reward_amount:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              activity_score:
+                type: number
+                format: double
+              evaluation_score:
+                type: number
+                format: double
+              combined_score:
+                type: number
+                format: double
+              reward_reason:
+                type: string
+              created_at:
+                type: string
+                format: date-time
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+      required: [data, pagination]
+
+    # ==================== Collections ====================
+    CollectionRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        force_collection:
+          type: boolean
+          default: false
+          description: 徴収条件を無視して強制徴収するか
+        collection_rate:
+          type: number
+          format: double
+          minimum: 0.0001
+          maximum: 1.0
+          nullable: true
+          description: 徴収率（指定なしはデフォルト）
+        collection_reason:
+          type: string
+          maxLength: 200
+          nullable: true
+      required: [user_id]
+
+    CollectionResponse:
+      type: object
+      properties:
+        collection_id:
+          type: string
+        user_id:
+          type: string
+          format: uuid
+        balance_before:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        collection_amount:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        collection_rate:
+          type: number
+          format: double
+        destination:
+          type: string
+          enum: [BURN, RESERVE, REDISTRIBUTE]
+        ai_decision_id:
+          type: string
+          nullable: true
+        processed_at:
+          type: string
+          format: date-time
+      required: [collection_id, user_id, balance_before, collection_amount, collection_rate, destination, processed_at]
+
+    MonthlyCollectionRequest:
+      type: object
+      properties:
+        target_month:
+          type: string
+          pattern: '^\d{4}-\d{2}$'
+          description: 対象月（YYYY-MM形式）
+        dry_run:
+          type: boolean
+          default: false
+        collection_threshold:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          nullable: true
+          description: 徴収最低残高（指定なしはデフォルト）
+      required: [target_month]
+
+    MonthlyCollectionResponse:
+      type: object
+      properties:
+        target_month:
+          type: string
+          pattern: '^\d{4}-\d{2}$'
+        total_collected:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        total_burned:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        total_reserved:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        affected_users:
+          type: integer
+        collection_details:
+          type: array
+          items:
+            type: object
+            properties:
+              user_id:
+                type: string
+                format: uuid
+              collection_amount:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              destination:
+                type: string
+                enum: [BURN, RESERVE, REDISTRIBUTE]
+        processed_at:
+          type: string
+          format: date-time
+      required: [target_month, total_collected, total_burned, total_reserved, affected_users, collection_details, processed_at]
+
+    BurnDecisionRequest:
+      type: object
+      properties:
+        trigger_source:
+          type: string
+          maxLength: 100
+          description: 判断トリガーの情報源
+        market_data:
+          type: object
+          properties:
+            price:
+              type: number
+              format: double
+              nullable: true
+            volume:
+              type: number
+              format: double
+              nullable: true
+            liquidity:
+              type: number
+              format: double
+              nullable: true
+          nullable: true
+      required: [trigger_source]
+
+    BurnDecisionResponse:
+      type: object
+      properties:
+        decision_id:
+          type: string
+        decision_date:
+          type: string
+          format: date
+        total_circulation:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        total_issued:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        ai_confidence:
+          type: number
+          format: double
+          minimum: 0.0
+          maximum: 1.0
+        decision_result:
+          type: string
+          enum: [BURN, RESERVE]
+        burned_amount:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        reserved_amount:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        reasoning:
+          type: string
+          description: AI判断理由
+        triggered_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required: [decision_id, decision_date, total_circulation, total_issued, ai_confidence, decision_result, burned_amount, reserved_amount, triggered_by, created_at]
+
+    CollectionHistoryResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              collection_id:
+                type: string
+              user_id:
+                type: string
+                format: uuid
+              collection_date:
+                type: string
+                format: date
+              collection_amount:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              destination:
+                type: string
+                enum: [BURN, RESERVE, REDISTRIBUTE]
+              collection_reason:
+                type: string
+              created_at:
+                type: string
+                format: date-time
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+      required: [data, pagination]
+
+    # ==================== Governance ====================
+    CouncilMembersResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              term_id:
+                type: string
+              user_id:
+                type: string
+                format: uuid
+              start_date:
+                type: string
+                format: date
+              end_date:
+                type: string
+                format: date
+              status:
+                type: string
+                enum: [ACTIVE, COMPLETED, RESIGNED, REMOVED]
+              voting_power:
+                type: number
+                format: double
+              evaluation_count:
+                type: integer
+              proposal_count:
+                type: integer
+        total_members:
+          type: integer
+      required: [data, total_members]
+
+    CouncilAppointRequest:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        voting_power:
+          type: number
+          format: double
+          default: 1.0
+          minimum: 0.1
+          maximum: 10.0
+        appointment_reason:
+          type: string
+          maxLength: 200
+      required: [user_id, start_date, end_date, appointment_reason]
+
+    CouncilAppointResponse:
+      type: object
+      properties:
+        term_id:
+          type: string
+        user_id:
+          type: string
+          format: uuid
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        voting_power:
+          type: number
+          format: double
+        status:
+          type: string
+          enum: [ACTIVE]
+        appointed_at:
+          type: string
+          format: date-time
+      required: [term_id, user_id, start_date, end_date, voting_power, status, appointed_at]
+
+    ProposalsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              proposal_id:
+                type: string
+                format: uuid
+              title:
+                type: string
+              proposal_type:
+                type: string
+                enum: [POLICY, PARAMETER, FEATURE, GOVERNANCE]
+              created_by:
+                type: string
+                format: uuid
+              status:
+                type: string
+                enum: [DRAFT, VOTING, PASSED, REJECTED, EXPIRED]
+              voting_start:
+                type: string
+                format: date-time
+              voting_end:
+                type: string
+                format: date-time
+              total_votes:
+                type: integer
+              yes_votes:
+                type: integer
+              no_votes:
+                type: integer
+              created_at:
+                type: string
+                format: date-time
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+      required: [data, pagination]
+
+    CreateProposalRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 10000
+        proposal_type:
+          type: string
+          enum: [POLICY, PARAMETER, FEATURE, GOVERNANCE]
+        voting_duration_hours:
+          type: integer
+          minimum: 24
+          maximum: 720
+          default: 168
+        quorum_required:
+          type: integer
+          minimum: 1
+          default: 3
+        approval_threshold:
+          type: number
+          format: double
+          minimum: 0.5
+          maximum: 1.0
+          default: 0.6
+      required: [title, description, proposal_type]
+
+    CreateProposalResponse:
+      type: object
+      properties:
+        proposal_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT]
+        voting_start:
+          type: string
+          format: date-time
+        voting_end:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required: [proposal_id, title, status, voting_start, voting_end, created_at]
+
+    ProposalDetail:
+      type: object
+      properties:
+        proposal_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        proposal_type:
+          type: string
+          enum: [POLICY, PARAMETER, FEATURE, GOVERNANCE]
+        created_by:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [DRAFT, VOTING, PASSED, REJECTED, EXPIRED]
+        voting_start:
+          type: string
+          format: date-time
+        voting_end:
+          type: string
+          format: date-time
+        quorum_required:
+          type: integer
+        approval_threshold:
+          type: number
+          format: double
+        total_votes:
+          type: integer
+        yes_votes:
+          type: integer
+        no_votes:
+          type: integer
+        abstain_votes:
+          type: integer
+        current_approval_rate:
+          type: number
+          format: double
+        is_quorum_met:
+          type: boolean
+        votes_detail:
+          type: array
+          items:
+            type: object
+            properties:
+              user_id:
+                type: string
+                format: uuid
+              vote_choice:
+                type: string
+                enum: [YES, NO, ABSTAIN]
+              voting_power:
+                type: number
+                format: double
+              cast_at:
+                type: string
+                format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required: [proposal_id, title, description, proposal_type, created_by, status, voting_start, voting_end, quorum_required, approval_threshold, total_votes, yes_votes, no_votes, abstain_votes, current_approval_rate, is_quorum_met, votes_detail, created_at, updated_at]
+
+    VoteRequest:
+      type: object
+      properties:
+        vote_choice:
+          type: string
+          enum: [YES, NO, ABSTAIN]
+        comment:
+          type: string
+          maxLength: 1000
+          nullable: true
+      required: [vote_choice]
+
+    VoteResponse:
+      type: object
+      properties:
+        vote_id:
+          type: string
+        proposal_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        vote_choice:
+          type: string
+          enum: [YES, NO, ABSTAIN]
+        voting_power:
+          type: number
+          format: double
+        vote_weight:
+          type: number
+          format: double
+        cast_at:
+          type: string
+          format: date-time
+        proposal_status_after:
+          type: string
+          enum: [DRAFT, VOTING, PASSED, REJECTED, EXPIRED]
+      required: [vote_id, proposal_id, user_id, vote_choice, voting_power, vote_weight, cast_at, proposal_status_after]
+
+    UserVotesResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              vote_id:
+                type: string
+              proposal_id:
+                type: string
+                format: uuid
+              proposal_title:
+                type: string
+              vote_choice:
+                type: string
+                enum: [YES, NO, ABSTAIN]
+              voting_power:
+                type: number
+                format: double
+              comment:
+                type: string
+                nullable: true
+              cast_at:
+                type: string
+                format: date-time
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+      required: [data, pagination]
+
+    # ==================== Statistics ====================
+    StatsOverview:
+      type: object
+      properties:
+        total_circulation:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 総流通量
+        total_issued:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 総発行量
+        total_burned:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 総バーン量
+        total_holders:
+          type: integer
+          description: ホルダー数
+        active_holders:
+          type: integer
+          description: アクティブホルダー数（残高>0）
+        average_balance:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 平均残高
+        median_balance:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 中央値残高
+        daily_issuance:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 日次発行量
+        daily_collection:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+          description: 日次徴収量
+        burn_rate:
+          type: number
+          format: double
+          description: バーン率
+        last_updated:
+          type: string
+          format: date-time
+      required: [total_circulation, total_issued, total_burned, total_holders, active_holders, average_balance, median_balance, daily_issuance, daily_collection, burn_rate, last_updated]
+
+    CirculationStats:
+      type: object
+      properties:
+        period:
+          type: string
+          description: エラーコード (例: BAD_REQUEST, NOT_FOUND, VALIDATION_ERROR, UNAUTHORIZED, INTERNAL_SERVER_ERROR)
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              circulation:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              issued:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              burned:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              collected:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              holders:
+                type: integer
+        summary:
+          type: object
+          properties:
+            total_change:
+              type: string
+              pattern: '^[+-]?\d+\.\d{8}$'
+            average_daily_issuance:
+              type: string
+              pattern: '^\d+\.\d{8}$'
+            average_daily_burn:
+              type: string
+              pattern: '^\d+\.\d{8}$'
+            growth_rate:
+              type: number
+              format: double
+      required: [period, data, summary]
+
+    RewardStats:
+      type: object
+      properties:
+        from_date:
+          type: string
+          format: date
+        to_date:
+          type: string
+          format: date
+        group_by:
+          type: string
+          enum: [day, week, month]
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              period:
+                type: string
+                format: date
+              total_rewards:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              recipient_count:
+                type: integer
+              average_reward:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              max_reward:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              min_reward:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+        summary:
+          type: object
+          properties:
+            total_period_rewards:
+              type: string
+              pattern: '^\d+\.\d{8}$'
+            total_recipients:
+              type: integer
+            overall_average:
+              type: string
+              pattern: '^\d+\.\d{8}$'
+      required: [from_date, to_date, group_by, data, summary]
+
+    TopHoldersResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              rank:
+                type: integer
+              user_id:
+                type: string
+                format: uuid
+              current_balance:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              percentage_of_total:
+                type: number
+                format: double
+              last_activity:
+                type: string
+                format: date-time
+                nullable: true
+        total_represented:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        percentage_of_circulation:
+          type: number
+          format: double
+        generated_at:
+          type: string
+          format: date-time
+      required: [data, total_represented, percentage_of_circulation, generated_at]
+
+    # ==================== Oracle ====================
+    OracleFeedsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              feed_id:
+                type: string
+              source:
+                type: string
+              data_type:
+                type: string
+                enum: [PRICE, VOLUME, LIQUIDITY, RATE]
+              value:
+                type: string
+                pattern: '^\d+\.\d{8}$'
+              confidence:
+                type: number
+                format: double
+                minimum: 0.0
+                maximum: 1.0
+              timestamp:
+                type: string
+                format: date-time
+              metadata:
+                type: object
+                nullable: true
+        latest_update:
+          type: string
+          format: date-time
+      required: [data, latest_update]
+
+    OracleFeedUpdateRequest:
+      type: object
+      properties:
+        source:
+          type: string
+          maxLength: 50
+        data_type:
+          type: string
+          enum: [PRICE, VOLUME, LIQUIDITY, RATE]
+        value:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        confidence:
+          type: number
+          format: double
+          minimum: 0.0
+          maximum: 1.0
+          default: 1.0
+        metadata:
+          type: object
+          nullable: true
+      required: [source, data_type, value]
+
+    OracleFeedUpdateResponse:
+      type: object
+      properties:
+        feed_id:
+          type: string
+        source:
+          type: string
+        data_type:
+          type: string
+          enum: [PRICE, VOLUME, LIQUIDITY, RATE]
+        value:
+          type: string
+          pattern: '^\d+\.\d{8}$'
+        confidence:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [ACCEPTED, REJECTED, PENDING]
+      required: [feed_id, source, data_type, value, confidence, created_at, status]
+
+    # ==================== Audit ====================
+    SystemParametersResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              parameter_id:
+                type: string
+              parameter_name:
+                type: string
+              parameter_value:
+                type: string
+              parameter_type:
+                type: string
+                enum: [STRING, NUMBER, BOOLEAN, JSON]
+              description:
+                type: string
+                nullable: true
+              last_updated_by:
+                type: string
+                format: uuid
+                nullable: true
+              updated_at:
+                type: string
+                format: date-time
+        total_parameters:
+          type: integer
+      required: [data, total_parameters]
+
+    ParameterUpdateRequest:
+      type: object
+      properties:
+        parameter_value:
+          type: string
+        update_reason:
+          type: string
+          maxLength: 200
+        force_update:
+          type: boolean
+          default: false
+          description: 値の検証をスキップして強制更新するか
+      required: [parameter_value, update_reason]
+
+    ParameterUpdateResponse:
+      type: object
+      properties:
+        parameter_id:
+          type: string
+        parameter_name:
+          type: string
+        old_value:
+          type: string
+        new_value:
+          type: string
+        updated_by:
+          type: string
+          format: uuid
+        update_reason:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        validation_passed:
+          type: boolean
+      required: [parameter_id, parameter_name, old_value, new_value, updated_by, update_reason, updated_at, validation_passed]
+
+    AdjustmentLogsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              adjustment_id:
+                type: string
+              parameter_name:
+                type: string
+              old_value:
+                type: string
+                nullable: true
+              new_value:
+                type: string
+              adjustment_reason:
+                type: string
+              adjusted_by:
+                type: string
+                format: uuid
+                nullable: true
+              trigger_type:
+                type: string
+                enum: [MANUAL, AUTO_AI, ORACLE, GOVERNANCE]
+              created_at:
+                type: string
+                format: date-time
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+      required: [data, pagination]

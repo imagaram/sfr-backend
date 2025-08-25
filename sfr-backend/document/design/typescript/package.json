@@ -1,0 +1,91 @@
+{
+    "name": "@sfr/crypto-sdk",
+    "version": "1.0.0",
+    "description": "SFR暗号資産システム TypeScript SDK - 包括的なAPI通信とデータ処理ライブラリ",
+    "main": "dist/index.js",
+    "module": "dist/index.esm.js",
+    "types": "dist/index.d.ts",
+    "author": "SFR Development Team",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/sfr-project/crypto-sdk.git"
+    },
+    "homepage": "https://sfr-project.github.io/crypto-sdk",
+    "bugs": {
+        "url": "https://github.com/sfr-project/crypto-sdk/issues"
+    },
+    "keywords": [
+        "sfr",
+        "cryptocurrency",
+        "token",
+        "api",
+        "typescript",
+        "sdk",
+        "blockchain",
+        "governance",
+        "rewards"
+    ],
+    "files": [
+        "dist/**/*",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "tsc && rollup -c",
+        "build:dev": "tsc --watch",
+        "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist/types",
+        "clean": "rimraf dist",
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
+        "lint": "eslint src/**/*.ts",
+        "lint:fix": "eslint src/**/*.ts --fix",
+        "format": "prettier --write src/**/*.ts",
+        "validate": "npm run lint && npm run test",
+        "prepublishOnly": "npm run clean && npm run build && npm run validate",
+        "docs": "typedoc --out docs src/index.ts",
+        "docs:serve": "http-server docs -p 8080"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.5.0",
+        "@types/node": "^20.0.0",
+        "@typescript-eslint/eslint-plugin": "^6.0.0",
+        "@typescript-eslint/parser": "^6.0.0",
+        "eslint": "^8.0.0",
+        "eslint-config-prettier": "^9.0.0",
+        "eslint-plugin-prettier": "^5.0.0",
+        "http-server": "^14.1.0",
+        "jest": "^29.5.0",
+        "prettier": "^3.0.0",
+        "rimraf": "^5.0.0",
+        "rollup": "^3.0.0",
+        "rollup-plugin-typescript2": "^0.35.0",
+        "ts-jest": "^29.1.0",
+        "typedoc": "^0.25.0",
+        "typescript": "^5.0.0"
+    },
+    "peerDependencies": {
+        "react": ">=16.8.0",
+        "react-dom": ">=16.8.0"
+    },
+    "peerDependenciesMeta": {
+        "react": {
+            "optional": true
+        },
+        "react-dom": {
+            "optional": true
+        }
+    },
+    "engines": {
+        "node": ">=16.0.0",
+        "npm": ">=8.0.0"
+    },
+    "publishConfig": {
+        "access": "public"
+    },
+    "funding": {
+        "type": "opencollective",
+        "url": "https://opencollective.com/sfr-project"
+    }
+}

@@ -1,0 +1,518 @@
+package com.sfr.tokyo.sfr_backend.service.crypto;
+
+import com.sfr.tokyo.sfr_backend.entity.crypto.UserBalance;
+import com.sfr.tokyo.sfr_backend.entity.crypto.UserBalanceId;
+import com.sfr.tokyo.sfr_backend.repository.crypto.UserBalanceRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * UserBalanceService
+ * SFR ユーザー残高のビジネスロジック層
+ * 残高管理、統計計算、取引処理などの中核機能を提供
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class UserBalanceService {
+
+    private final UserBalanceRepository userBalanceRepository;
+
+    // ===== 基本CRUD操作 =====
+
+    /**
+     * ユーザー残高を取得
+     */
+    @Transactional(readOnly = true)
+    public Optional<UserBalance> findById(String userId) {
+        log.debug("Finding user balance by ID: {}", userId);
+        return userBalanceRepository.findById(userId);
+    }
+
+    /**
+     * 全ユーザー残高を取得（ページネーション付き）
+     */
+    @Transactional(readOnly = true)
+    public Page<UserBalance> findAll(int page, int size, String sortBy) {
+        log.debug("Finding all user balances with pagination");
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, sortBy));
+        return userBalanceRepository.findAll(pageable);
+    }
+
+    /**
+     * 新しいユーザー残高を作成
+     */
+    @Transactional
+    public UserBalance createUserBalance(String userId, BigDecimal initialBalance) {
+        log.info("Creating new user balance for userId: {}, initialBalance: {}",
+                userId, initialBalance);
+
+        // 既存の残高がないことを確認
+        Optional<UserBalance> existing = userBalanceRepository.findById(userId);
+        if (existing.isPresent()) {
+            log.warn("User balance already exists for userId: {}", userId);
+            throw new IllegalStateException("User balance already exists");
+        }
+
+        UserBalance userBalance = UserBalance.builder()
+                .userId(userId)
+                .currentBalance(initialBalance != null ? initialBalance : BigDecimal.ZERO)
+                .totalEarned(BigDecimal.ZERO)
+                .totalSpent(BigDecimal.ZERO)
+                .totalCollected(BigDecimal.ZERO)
+                .collectionExempt(false)
+                .frozen(false)
+                .build();
+
+        UserBalance saved = userBalanceRepository.save(userBalance);
+        log.info("Created user balance with user ID: {}", saved.getUserId());
+        return saved;
+    }
+
+    /**
+     * ユーザー残高を更新
+     */
+    @Transactional
+    public UserBalance updateUserBalance(UserBalance userBalance) {
+        log.debug("Updating user balance with user ID: {}", userBalance.getUserId());
+        return userBalanceRepository.save(userBalance);
+    }
+
+    /**
+     * ユーザー残高を削除
+     */
+    @Transactional
+    public void deleteUserBalance(String userId) {
+        log.info("Deleting user balance for userId: {}", userId);
+        userBalanceRepository.deleteById(userId);
+    }
+
+    // ===== 残高操作メソッド =====
+
+    /**
+     * 残高を増加（報酬、収集等）
+     */
+    @Transactional
+    public UserBalance increaseBalance(String userId, BigDecimal amount, String reason) {
+        log.info("Increasing balance for userId: {}, amount: {}, reason: {}",
+                userId, amount, reason);
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+
+        UserBalance userBalance = getOrCreateUserBalance(userId);
+
+        if (userBalance.getFrozen()) {
+            throw new IllegalStateException("Cannot increase balance for frozen account");
+        }
+
+        // エンティティのビジネスメソッドを使用
+        userBalance.addBalance(amount);
+
+        UserBalance updated = userBalanceRepository.save(userBalance);
+        log.info("Balance increased successfully. New balance: {}", updated.getCurrentBalance());
+        return updated;
+    }
+
+    /**
+     * 残高を減少（支払い、バーン等）
+     */
+    @Transactional
+    public UserBalance decreaseBalance(String userId, BigDecimal amount, String reason) {
+        log.info("Decreasing balance for userId: {}, amount: {}, reason: {}",
+                userId, amount, reason);
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+
+        UserBalance userBalance = getUserBalance(userId);
+
+        if (userBalance.getFrozen()) {
+            throw new IllegalStateException("Cannot decrease balance for frozen account");
+        }
+
+        // エンティティのビジネスメソッドを使用
+        userBalance.subtractBalance(amount);
+
+        UserBalance updated = userBalanceRepository.save(userBalance);
+        log.info("Balance decreased successfully. New balance: {}", updated.getCurrentBalance());
+        return updated;
+    }
+
+    /**
+     * 残高を転送
+     */
+    @Transactional
+    public void transferBalance(String fromUserId, String toUserId, BigDecimal amount, String reason) {
+        log.info("Transferring balance from userId: {} to userId: {}, amount: {}, reason: {}",
+                fromUserId, toUserId, amount, reason);
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Transfer amount must be positive");
+        }
+
+        if (fromUserId.equals(toUserId)) {
+            throw new IllegalArgumentException("Cannot transfer to the same user");
+        }
+
+        // 送信者の残高を減少
+        decreaseBalance(fromUserId, amount, "Transfer to " + toUserId + ": " + reason);
+
+        // 受信者の残高を増加
+        increaseBalance(toUserId, amount, "Transfer from " + fromUserId + ": " + reason);
+
+        log.info("Balance transfer completed successfully");
+    }
+
+    /**
+     * 徴収を実行
+     */
+    @Transactional
+    public UserBalance performCollection(String userId, BigDecimal amount, String reason) {
+        log.info("Performing collection for userId: {}, amount: {}, reason: {}",
+                userId, amount, reason);
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Collection amount must be positive");
+        }
+
+        UserBalance userBalance = getUserBalance(userId);
+
+        if (userBalance.getFrozen()) {
+            throw new IllegalStateException("Cannot collect from frozen account");
+        }
+
+        if (userBalance.getCollectionExempt()) {
+            throw new IllegalStateException("User is exempt from collection");
+        }
+
+        // エンティティのビジネスメソッドを使用
+        userBalance.collect(amount);
+
+        UserBalance updated = userBalanceRepository.save(userBalance);
+        log.info("Collection completed successfully. New balance: {}", updated.getCurrentBalance());
+        return updated;
+    }
+
+    // ===== アカウント管理メソッド =====
+
+    /**
+     * アカウントを凍結
+     */
+    @Transactional
+    public UserBalance freezeAccount(String userId, String reason) {
+        log.warn("Freezing account for userId: {}, reason: {}", userId, reason);
+
+        UserBalance userBalance = getUserBalance(userId);
+        userBalance.freeze();
+
+        UserBalance updated = userBalanceRepository.save(userBalance);
+        log.warn("Account frozen successfully");
+        return updated;
+    }
+
+    /**
+     * アカウントの凍結を解除
+     */
+    @Transactional
+    public UserBalance unfreezeAccount(String userId, String reason) {
+        log.info("Unfreezing account for userId: {}, reason: {}", userId, reason);
+
+        UserBalance userBalance = getUserBalance(userId);
+        userBalance.unfreeze();
+
+        UserBalance updated = userBalanceRepository.save(userBalance);
+        log.info("Account unfrozen successfully");
+        return updated;
+    }
+
+    /**
+     * 徴収免除を設定
+     */
+    @Transactional
+    public UserBalance setCollectionExemption(String userId, boolean exempt, String reason) {
+        log.info("Setting collection exemption for userId: {}, exempt: {}, reason: {}",
+                userId, exempt, reason);
+
+        UserBalance userBalance = getUserBalance(userId);
+        userBalance.setCollectionExemption(exempt);
+
+        UserBalance updated = userBalanceRepository.save(userBalance);
+        log.info("Collection exemption set successfully");
+        return updated;
+    }
+
+    // ===== 統計・分析メソッド =====
+
+    /**
+     * 総残高を取得
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalBalance() {
+        log.debug("Calculating total balance across all users");
+        List<UserBalance> allBalances = userBalanceRepository.findAll();
+        return allBalances.stream()
+                .map(UserBalance::getCurrentBalance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * 残高ランキングを取得
+     */
+    @Transactional(readOnly = true)
+    public Page<UserBalance> getBalanceRanking(int page, int size) {
+        log.debug("Getting balance ranking");
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "currentBalance"));
+        return userBalanceRepository.findAll(pageable);
+    }
+
+    /**
+     * アクティブユーザー数を取得
+     */
+    @Transactional(readOnly = true)
+    public Long getActiveUserCount() {
+        log.debug("Counting active users");
+        List<UserBalance> balances = userBalanceRepository.findAll();
+        return balances.stream()
+                .filter(UserBalance::isActive)
+                .count();
+    }
+
+    /**
+     * 凍結アカウント数を取得
+     */
+    @Transactional(readOnly = true)
+    public Long getFrozenAccountCount() {
+        log.debug("Counting frozen accounts");
+        List<UserBalance> balances = userBalanceRepository.findAll();
+        return balances.stream()
+                .filter(UserBalance::getFrozen)
+                .count();
+    }
+
+    /**
+     * 徴収対象ユーザーを取得
+     */
+    @Transactional(readOnly = true)
+    public List<UserBalance> getCollectionTargets(BigDecimal minimumBalance) {
+        log.debug("Getting collection targets with minimum balance: {}", minimumBalance);
+        List<UserBalance> balances = userBalanceRepository.findAll();
+        return balances.stream()
+                .filter(balance -> balance.isCollectionTarget(minimumBalance))
+                .toList();
+    }
+
+    /**
+     * 徴収統計を取得
+     */
+    @Transactional(readOnly = true)
+    public CollectionStatistics getCollectionStatistics() {
+        log.debug("Getting collection statistics");
+
+        List<UserBalance> balances = userBalanceRepository.findAll();
+
+        BigDecimal totalCollected = balances.stream()
+                .map(UserBalance::getTotalCollected)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        long collectionTargetCount = balances.stream()
+                .filter(balance -> balance.isCollectionTarget(BigDecimal.ONE))
+                .count();
+
+        long exemptCount = balances.stream()
+                .filter(UserBalance::getCollectionExempt)
+                .count();
+
+        long recentCollectionCount = balances.stream()
+                .filter(balance -> balance.getLastCollectionDate() != null &&
+                        balance.getLastCollectionDate().isAfter(LocalDate.now().minusDays(7)))
+                .count();
+
+        return CollectionStatistics.builder()
+                .totalCollected(totalCollected)
+                .collectionTargetCount(collectionTargetCount)
+                .exemptUserCount(exemptCount)
+                .recentCollectionCount(recentCollectionCount)
+                .build();
+    }
+
+    // ===== バリデーション・ヘルパーメソッド =====
+
+    /**
+     * ユーザー残高を取得（存在しない場合は例外をスロー）
+     */
+    private UserBalance getUserBalance(String userId) {
+        return userBalanceRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        String.format("User balance not found for userId: %s", userId)));
+    }
+
+    /**
+     * ユーザー残高を取得または作成
+     */
+    private UserBalance getOrCreateUserBalance(String userId) {
+        return userBalanceRepository.findById(userId)
+                .orElseGet(() -> createUserBalance(userId, BigDecimal.ZERO));
+    }
+
+    /**
+     * 残高が十分かチェック
+     */
+    @Transactional(readOnly = true)
+    public boolean hasSufficientBalance(String userId, BigDecimal requiredAmount) {
+        log.debug("Checking sufficient balance for userId: {}, required: {}",
+                userId, requiredAmount);
+
+        Optional<UserBalance> userBalance = userBalanceRepository.findById(userId);
+        if (userBalance.isEmpty()) {
+            return false;
+        }
+
+        if (userBalance.get().getFrozen()) {
+            return false;
+        }
+
+        return userBalance.get().getCurrentBalance().compareTo(requiredAmount) >= 0;
+    }
+
+    /**
+     * アカウントが凍結されているかチェック
+     */
+    @Transactional(readOnly = true)
+    public boolean isAccountFrozen(String userId) {
+        log.debug("Checking if account is frozen for userId: {}", userId);
+
+        Optional<UserBalance> userBalance = userBalanceRepository.findById(userId);
+        return userBalance.map(UserBalance::getFrozen).orElse(false);
+    }
+
+    /**
+     * 徴収対象かチェック
+     */
+    @Transactional(readOnly = true)
+    public boolean isCollectionTarget(String userId, BigDecimal minimumBalance) {
+        log.debug("Checking if user is collection target for userId: {}, minimumBalance: {}",
+                userId, minimumBalance);
+
+        Optional<UserBalance> userBalance = userBalanceRepository.findById(userId);
+        return userBalance.map(balance -> balance.isCollectionTarget(minimumBalance)).orElse(false);
+    }
+
+    // ===== 詳細統計メソッド =====
+
+    /**
+     * システム全体の残高統計を取得
+     */
+    @Transactional(readOnly = true)
+    public SystemBalanceStatistics getSystemBalanceStatistics() {
+        log.debug("Getting system balance statistics");
+
+        List<UserBalance> balances = userBalanceRepository.findAll();
+
+        if (balances.isEmpty()) {
+            return SystemBalanceStatistics.builder()
+                    .totalUsers(0L)
+                    .activeUsers(0L)
+                    .frozenUsers(0L)
+                    .exemptUsers(0L)
+                    .totalBalance(BigDecimal.ZERO)
+                    .totalEarned(BigDecimal.ZERO)
+                    .totalSpent(BigDecimal.ZERO)
+                    .totalCollected(BigDecimal.ZERO)
+                    .averageBalance(BigDecimal.ZERO)
+                    .maxBalance(BigDecimal.ZERO)
+                    .build();
+        }
+
+        long totalUsers = balances.size();
+        long activeUsers = balances.stream()
+                .filter(UserBalance::isActive)
+                .count();
+        long frozenUsers = balances.stream()
+                .filter(UserBalance::getFrozen)
+                .count();
+        long exemptUsers = balances.stream()
+                .filter(UserBalance::getCollectionExempt)
+                .count();
+
+        BigDecimal totalBalance = balances.stream()
+                .map(UserBalance::getCurrentBalance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalEarned = balances.stream()
+                .map(UserBalance::getTotalEarned)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalSpent = balances.stream()
+                .map(UserBalance::getTotalSpent)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalCollected = balances.stream()
+                .map(UserBalance::getTotalCollected)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal averageBalance = totalBalance.divide(
+                BigDecimal.valueOf(totalUsers), 8, RoundingMode.HALF_UP);
+
+        BigDecimal maxBalance = balances.stream()
+                .map(UserBalance::getCurrentBalance)
+                .max(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+
+        return SystemBalanceStatistics.builder()
+                .totalUsers(totalUsers)
+                .activeUsers(activeUsers)
+                .frozenUsers(frozenUsers)
+                .exemptUsers(exemptUsers)
+                .totalBalance(totalBalance)
+                .totalEarned(totalEarned)
+                .totalSpent(totalSpent)
+                .totalCollected(totalCollected)
+                .averageBalance(averageBalance)
+                .maxBalance(maxBalance)
+                .build();
+    }
+
+    // ===== 内部DTO クラス =====
+
+    @lombok.Data
+    @lombok.Builder
+    public static class CollectionStatistics {
+        private BigDecimal totalCollected;
+        private Long collectionTargetCount;
+        private Long exemptUserCount;
+        private Long recentCollectionCount;
+    }
+
+    @lombok.Data
+    @lombok.Builder
+    public static class SystemBalanceStatistics {
+        private Long totalUsers;
+        private Long activeUsers;
+        private Long frozenUsers;
+        private Long exemptUsers;
+        private BigDecimal totalBalance;
+        private BigDecimal totalEarned;
+        private BigDecimal totalSpent;
+        private BigDecimal totalCollected;
+        private BigDecimal averageBalance;
+        private BigDecimal maxBalance;
+    }
+}

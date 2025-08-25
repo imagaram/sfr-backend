@@ -1,0 +1,79 @@
+Next.js フロントエンド実装計画（フェーズ1対応版）バックエンドの「フェーズ1：コア機能 (MVP) の構築」に対応する形で、Next.js フロントエンドの実装計画を更新します。
+このフェーズでは、以下の主要機能に焦点を当てて開発を進めます。
+ユーザー認証機能: ユーザーの登録、ログイン、ログアウト
+キャラクター管理機能: キャラクターの作成、編集、削除
+作品投稿機能: アーティストステータス時のポートフォリオページ作成、作品投稿
+
+1. ディレクトリ構造の構築Next.js の App Router の規約に沿った、フェーズ1に必要なディレクトリ構造を再構築します。
+sfr-frontend/
+├── app/
+│   ├── (auth)/             # 認証関連のページをグルーピング
+│   │   ├── login/
+│   │   │   └── page.tsx      # ログインページ
+│   │   └── register/
+│   │       └── page.tsx      # ユーザー登録ページ
+│   ├── (main)/             # メインコンテンツページをグルーピング
+│   │   ├── page.tsx          # ホーム/キャラクター一覧ページ
+│   │   └── profile/
+│   │       ├── page.tsx      # ユーザープロフィールページ
+│   │       └── edit/
+│   │           └── page.tsx  # プロフィール編集ページ
+│   ├── characters/
+│   │   ├── [characterId]/
+│   │   │   └── page.tsx      # キャラクター詳細ページ
+│   │   └── create/
+│   │       └── page.tsx      # キャラクター作成ページ
+│   ├── works/
+│   │   └── create/
+│   │       └── page.tsx      # 作品投稿ページ
+│   └── layout.tsx          # アプリケーション全体の共通レイアウト
+├── components/
+│   ├── ui/                 # shadcn/uiコンポーネント
+│   ├── auth/
+│   │   ├── AuthForm.tsx      # ログイン・登録共通フォーム
+│   │   └── LogoutButton.tsx  # ログアウトボタン
+│   ├── CharacterForm.tsx     # キャラクター作成・編集用フォーム
+│   ├── CharacterList.tsx     # キャラクター一覧表示用コンポーネント
+│   ├── WorkForm.tsx          # 作品投稿用フォーム
+│   ├── Header.tsx            # ページ共通ヘッダー（ログイン状態に応じて表示変更）
+│   └── ...
+├── lib/
+│   ├── api.ts              # バックエンドAPI呼び出し関数
+│   ├── auth.ts             # 認証関連ヘルパー関数
+│   └── utils.ts            # 汎用ヘルパー関数
+├── public/
+├── styles/
+└── ...
+
+2. 実装する機能とファイルの洗い出し
+ユーザー認証と基本情報管理app/(auth)/register/page.tsx: ユーザー登録用のフォームを実装。フォームの入力値（メールアドレス、パスワードなど）をバックエンドの/api/auth/registerエンドポイントに送信します。
+app/(auth)/login/page.tsx: ログイン用のフォームを実装。認証情報（メールアドレス、パスワード）を/api/auth/loginに送信し、受け取ったJWTをhttpOnlyクッキーなどに安全に保存するロジックを実装します。
+app/(main)/profile/page.tsx: ログインユーザーの基本情報を表示するページ。getProfile()APIを呼び出してデータを取得します。
+components/Header.tsx: ユーザーのログイン状態を判定し、「ログイン/登録」ボタン、または「プロフィール/ログアウト」ボタンを表示するように切り替えます。
+lib/auth.ts: JWTの保存、取得、削除などの認証状態管理を行うためのヘルパー関数を定義します。
+キャラクター機能app/(main)/page.tsx: 全てのキャラクター情報を表示するホーム画面。バックエンドの/api/charactersからデータを取得し、一覧で表示します。
+app/characters/create/page.tsx: キャラクター作成フォームを実装。キャラクター名、属性、紐づけるユーザーIDなどを入力し、/api/characters/createにPOSTリクエストを送ります。
+app/characters/[characterId]/page.tsx: 特定のキャラクター詳細を表示。characterIdをURLパラメータから取得し、/api/characters/[characterId]からデータを取得します。編集・削除ボタンを配置し、/api/characters/[characterId]/editや/api/characters/[characterId]/deleteを呼び出す機能を実装します。
+作品投稿機能app/works/create/page.tsx: 作品投稿フォームを実装。タイトル、説明、そしてバックエンドのuploadImageエンドポイントを利用した画像・ファイルアップロード機能を組み込みます。
+
+3. 使用する技術スタック
+フレームワーク: Next.js (App Router)
+言語: TypeScript
+スタイリング: Tailwind 
+CSSUIライブラリ: shadcn/ui（Form、Input、Button、Cardなど）
+データ取得: fetch API を基本とします。必要に応じて SWR や React Query の導入も検討します。
+フォーム管理: React Hook 
+Form状態管理: コンポーネントの状態管理にはuseStateを使用します。
+
+この計画に沿って、まずはNext.jsプロジェクトのセットアップから始めます。c
+reate-next-appコマンドを使用してプロジェクトの雛形を作成し、tailwindとshadcn/uiを導入するところから始めましょう。
+
+
+
+
+
+/sfr-backend/src/main/java/com/sfr/tokyo/sfr_backend/user/User.java
+
+/sfr-backend/src/main/java/com/sfr/tokyo/sfr_backend/entity/Character.java
+
+/sfr-backend/src/main/java/com/sfr/tokyo/sfr_backend/entity/Post.java

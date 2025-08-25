@@ -1,0 +1,83 @@
+{
+    "compilerOptions": {
+        // 基本設定
+        "target": "ES2020",
+        "module": "ESNext",
+        "lib": [
+            "ES2020",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "moduleResolution": "node",
+        "allowJs": false,
+        "checkJs": false,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "outDir": "./dist",
+        "rootDir": "./",
+        "removeComments": false,
+        "downlevelIteration": true,
+        "importHelpers": true,
+        // 厳密性設定
+        "strict": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "strictBindCallApply": true,
+        "strictPropertyInitialization": true,
+        "noImplicitThis": true,
+        "alwaysStrict": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "noImplicitOverride": true,
+        "noPropertyAccessFromIndexSignature": false,
+        // エラー検出設定
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "exactOptionalPropertyTypes": true,
+        // モジュール解決設定
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        // 実験的機能
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        // パス設定
+        "baseUrl": "./",
+        "paths": {
+            "@/*": [
+                "./*"
+            ],
+            "@/types": [
+                "./sfr-crypto-types"
+            ],
+            "@/client": [
+                "./sfr-crypto-client"
+            ],
+            "@/utils": [
+                "./sfr-crypto-utils"
+            ]
+        },
+        // JSXサポート（React使用時）
+        "jsx": "react-jsx",
+        "jsxImportSource": "react"
+    },
+    "include": [
+        "./**/*.ts",
+        "./**/*.tsx"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "**/*.test.ts",
+        "**/*.spec.ts",
+        "**/*.d.ts"
+    ],
+    "ts-node": {
+        "esm": true
+    }
+}

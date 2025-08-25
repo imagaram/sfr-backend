@@ -1,0 +1,1358 @@
+学習空間でやりたいことの整理
+1. アプリのコンセプト
+**「学校」「オンラインサロン」「公式ファンクラブ」**の3つのモードを切り替えられる、多機能なプラットフォームです。
+
+2. 主要な機能と要件
+プラットフォーム共通機能
+ステータス切り替え機能:
+学習空間機能立ち上げ時に、管理画面からコミュニティのタイプ（学校、サロン、ファンクラブ）を簡単に切り替えられる。
+切り替えに応じて、UIや使用できる機能セットが最適化される。
+
+動画投稿・視聴機能
+テキスト配布機能
+
+カリキュラム・学習管理機能（主に「学校」モード）
+ロードマップ作成:
+複数のレッスンやコースを組み合わせて、学習のロードマップを視覚的に作成できる。
+カリキュラムの進捗を管理し、完了した項目をチェックできる。
+
+ゲーミフィケーション:
+学習の進捗状況に応じてバッジや称号が付与される。
+動画視聴完了によるバッジ付与: 動画を最後まで視聴すると自動的にバッジが付与される。
+課題をクリアするとポイントが獲得でき、ランキング機能などでモチベーションを向上させる。
+
+オンライン対面授業モード:
+オンライン授業のスケジュール管理:
+オーナーがオンライン授業の日時と定員を設定し、参加者を募集できる。
+ライブ配信:
+オーナーが授業をライブ配信し、参加者がリアルタイムで視聴・コメントできる。
+インタラクティブな質疑応答:
+参加者がリアルタイムで質問を投稿し、オーナーが回答できるQ&A機能。
+オンライン授業後のフィードバック:
+授業後に参加者から感想やフィードバックを収集できる。
+
+インタラクティブコンテンツ作成機能
+クイズ機能:
+動画の内容に連動したクイズを作成し、ユーザーの理解度を測る。
+シミュレーション機能:
+写経機能:
+語学、プログラミングのコード、歌詞、インタビュー記事など、多様なテキストの写経コンテンツを作成できる。
+ユーザーは手本を見ながら文字を入力し、正確性や入力速度を計測できる。
+誤字脱字の自動チェック機能や、タイピング速度の可視化機能などを実装する。
+
+コミュニティ機能（全モード共通）
+ディスカッションフォーラム:
+特定のトピックや動画ごとに、ユーザー同士が議論できる掲示板機能。
+Mixiのように、特定の投稿に対してツリー形式でコメントが連なり、活発な交流を促す。
+オーナーがQ&Aセッションやライブ配信を告知・開催できる。
+
+AIアシスタント機能（全モード共通）
+AIチューター/執事:
+学習内容に関する質問応答:
+動画の内容について、特定のキーワードや概念を質問すると、その部分を要約して回答する。
+例：「プログラミングのこの部分のコードの意味が知りたい」といった質問に答える。
+コミュニティ運営のサポート:
+コミュニティ規則やFAQへの自動応答: 「投稿する際の注意点は？」や「退会手続きはどうすればいい？」といった、コミュニティのルールやよくある質問に即座に回答する。
+雑談や対話: ユーザーが気軽に話しかけられる相手として、簡単な雑談に対応し、コミュニティ全体の雰囲気作りにも貢献する。
+オーナーへのレポート作成: オーナーに代わって、コミュニティ内の活動状況（アクティブユーザー数、人気の動画、質問の傾向など）を定期的にまとめてレポートする。
+
+先生の報酬について：
+学習空間機能を運営するものは、月額サブスクリプションか、買い切り講座利用料を受け取ることができる。
+無料で講座を開く方々には、運営から暗号資産が付与される
+
+
+・モバイルアプリ[SFRM]へのPR投稿機能
+
+-----------------------------------------------------------------------------------------
+
+<!-- この設計書はGitHub Copilot Proによるコード生成を目的としています -->
+
+学習空間機能 設計書（sfr.tokyo）
+
+1️⃣ 機能のイメージ
+
+コンセプト： 「学校」「オンラインサロン」「公式ファンクラブ」の3モードを切り替えられる、教育・交流・エンタメが融合した空間。
+
+モード切り替え： 管理画面からモードを選択 → UI・機能セットが自動最適化。
+
+主なユースケース：
+
+動画・教材の投稿と視聴
+
+カリキュラムの進捗管理とゲーミフィケーション
+
+オンライン授業の開催とフィードバック収集
+
+写経・クイズなどのインタラクティブ教材
+
+ディスカッションフォーラムによる交流
+
+AIチューターによる学習支援と運営補助
+
+モバイルアプリ[SFRM]へのPR投稿
+
+2️⃣ DB定義（抜粋）
+
+learning_space
+
+id: BIGINT, PK
+
+name: VARCHAR
+
+mode: ENUM(SCHOOL, SALON, FANCLUB)
+
+learning_mode_config
+
+id: BIGINT, PK
+
+space_id: BIGINT, FK → learning_space.id
+
+ui_config: JSON
+
+feature_flags: JSON
+
+learning_content
+
+id: BIGINT, PK
+
+space_id: BIGINT, FK
+
+title: VARCHAR
+
+type: ENUM(VIDEO, MATERIAL)
+
+url: TEXT
+
+learning_section
+
+id: BIGINT, PK
+
+content_id: BIGINT, FK
+
+title: VARCHAR
+
+order: INT
+
+learning_material
+
+id: BIGINT, PK
+
+section_id: BIGINT, FK
+
+text: TEXT
+
+media_url: TEXT
+
+learning_progress
+
+id: BIGINT, PK
+
+user_id: BIGINT
+
+content_id: BIGINT
+
+progress_percent: DECIMAL
+
+learning_badge
+
+id: BIGINT, PK
+
+name: VARCHAR
+
+description: TEXT
+
+learning_point
+
+id: BIGINT, PK
+
+user_id: BIGINT
+
+points: INT
+
+learning_ranking
+
+id: BIGINT, PK
+
+space_id: BIGINT
+
+user_id: BIGINT
+
+rank: INT
+
+learning_live_session
+
+id: BIGINT, PK
+
+owner_id: BIGINT
+
+title: VARCHAR
+
+scheduled_at: DATETIME
+
+max_participants: INT
+
+learning_live_feedback
+
+id: BIGINT, PK
+
+session_id: BIGINT, FK
+
+user_id: BIGINT
+
+feedback: TEXT
+
+learning_live_qna
+
+id: BIGINT, PK
+
+session_id: BIGINT, FK
+
+question: TEXT
+
+answer: TEXT
+
+learning_quiz
+
+id: BIGINT, PK
+
+space_id: BIGINT
+
+title: VARCHAR
+
+questions: JSON
+
+learning_simulation
+
+id: BIGINT, PK
+
+space_id: BIGINT
+
+scenario: TEXT
+
+learning_shakyo
+
+id: BIGINT, PK
+
+source_text: TEXT
+
+category: VARCHAR
+
+learning_forum
+
+id: BIGINT, PK
+
+space_id: BIGINT
+
+title: VARCHAR
+
+learning_comment
+
+id: BIGINT, PK
+
+forum_id: BIGINT, FK
+
+user_id: BIGINT
+
+text: TEXT
+
+learning_topic
+
+id: BIGINT, PK
+
+forum_id: BIGINT, FK
+
+title: VARCHAR
+
+learning_ai_log
+
+id: BIGINT, PK
+
+user_id: BIGINT
+
+query: TEXT
+
+response: TEXT
+
+learning_ai_report
+
+id: BIGINT, PK
+
+space_id: BIGINT
+
+summary: TEXT
+
+learning_ai_faq
+
+id: BIGINT, PK
+
+question: TEXT
+
+answer: TEXT
+
+learning_pr_post
+
+id: BIGINT, PK
+
+space_id: BIGINT
+
+title: VARCHAR
+
+content: TEXT
+
+learning_subscription_plan
+
+id: BIGINT, PK
+
+space_id: BIGINT
+
+monthly_fee: DECIMAL
+
+currency: VARCHAR
+
+learning_course_fee
+
+id: BIGINT, PK
+
+content_id: BIGINT
+
+price: DECIMAL
+
+currency: VARCHAR
+
+learning_reward_log
+
+id: BIGINT, PK
+
+instructor_id: BIGINT
+
+content_id: BIGINT
+
+reward_type: ENUM(SUBSCRIPTION, COURSE_FEE, CRYPTO_GRANT)
+
+amount: DECIMAL
+
+granted_at: DATETIME
+
+crypto_asset_transaction
+
+id: BIGINT, PK
+
+reward_log_id: BIGINT, FK
+
+asset_type: VARCHAR
+
+amount: DECIMAL
+
+status: ENUM(PENDING, COMPLETED)
+
+3️⃣ 機能群と対応DB設計（概要）
+
+機能カテゴリ
+
+主なテーブル案
+
+モード管理
+
+learning_space, learning_mode_config
+
+コンテンツ管理
+
+learning_content, learning_section, learning_material
+
+進捗・ゲーミフィケーション
+
+learning_progress, learning_badge, learning_point, learning_ranking
+
+オンライン授業
+
+learning_live_session, learning_live_feedback, learning_live_qna
+
+インタラクティブ教材
+
+learning_quiz, learning_simulation, learning_shakyo
+
+コミュニティ
+
+learning_forum, learning_comment, learning_topic
+
+AIアシスタント
+
+learning_ai_log, learning_ai_report, learning_ai_faq
+
+PR連携
+
+learning_pr_post（→ SFRM連携）
+
+報酬設計
+
+learning_subscription_plan, learning_course_fee, learning_reward_log, crypto_asset_transaction
+
+4️⃣ API設計（詳細）
+
+メソッド
+
+パス
+
+説明
+
+リクエストDTO
+
+レスポンス
+
+POST
+
+/learning/spaces
+
+学習空間の作成（モード指定）
+
+LearningSpaceCreateDto
+
+spaceId
+
+GET
+
+/learning/spaces/{id}/config
+
+モード別設定取得
+
+―
+
+LearningModeConfig
+
+PUT
+
+/learning/spaces/{id}/config
+
+モード別設定更新
+
+LearningModeConfigDto
+
+success
+
+POST
+
+/learning/contents
+
+動画・教材投稿
+
+LearningContentDto
+
+contentId
+
+GET
+
+/learning/contents/{id}
+
+コンテンツ詳細取得
+
+―
+
+LearningContentDetail
+
+POST
+
+/learning/progress
+
+学習進捗登録
+
+LearningProgressDto
+
+progressId
+
+GET
+
+/learning/progress/{userId}
+
+ユーザー進捗取得
+
+―
+
+List<LearningProgress>
+
+POST
+
+/learning/live/sessions
+
+オンライン授業作成
+
+LearningLiveSessionDto
+
+sessionId
+
+GET
+
+/learning/live/sessions/{id}
+
+授業詳細取得
+
+―
+
+LearningLiveSessionDetail
+
+POST
+
+/learning/quizzes
+
+クイズ作成
+
+LearningQuizDto
+
+quizId
+
+GET
+
+/learning/quizzes/{id}
+
+クイズ詳細取得
+
+―
+
+LearningQuizDetail
+
+POST
+
+/learning/shakyo
+
+写経教材作成
+
+LearningShakyoDto
+
+shakyoId
+
+GET
+
+/learning/shakyo/{id}
+
+写経教材取得
+
+―
+
+LearningShakyoDetail
+
+POST
+
+/learning/ai/query
+
+AIチューターへの質問
+
+LearningAiQueryDto
+
+responseText
+
+GET
+
+/learning/ai/report
+
+AIによる活動レポート取得
+
+―
+
+LearningAiReport
+
+POST
+
+/learning/subscription/plans
+
+月額プランの登録
+
+LearningSubscriptionPlanDto
+
+planId
+
+GET
+
+/learning/subscription/plans/{id}
+
+プラン詳細取得
+
+―
+
+LearningSubscriptionPlanDetail
+
+POST
+
+/learning/course/fee
+
+買い切り講座の価格設定
+
+LearningCourseFeeDto
+
+feeId
+
+GET
+
+/learning/course/fee/{id}
+
+講座価格取得
+
+―
+
+LearningCourseFeeDetail
+
+GET
+
+/learning/rewards/{instructorId}
+
+報酬履歴取得
+
+―
+
+List<LearningRewardLog>
+
+POST
+
+/learning/rewards/crypto
+
+無料講座提供者への暗号資産付与（運営権限）
+
+CryptoRewardRequestDto
+
+transactionId
+
+5️⃣ DTO定義と責務コメント
+
+// Zod型生成例
+
+// 使用API: POST /learning/spaces
+// 関連Entity: learning_space
+export const LearningSpaceCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  mode: z.enum(['SCHOOL', 'SALON', 'FANCLUB'])
+});
+
+// 使用API: POST /learning/contents
+// 関連Entity: learning_content
+export const LearningContentSchema = z.object({
+  title: z.string().min(1).max(100),
+  type: z.enum(['VIDEO', 'MATERIAL']),
+  url: z.string().url()
+});
+
+// 使用API: POST /learning/progress
+// 関連Entity: learning_progress
+export const LearningProgressSchema = z.object({
+  content_id: z.number().int(),
+  progress_percent: z.number().min(0).max(100)
+});
+
+// 使用API: POST /learning/live/sessions
+// 関連Entity: learning_live_session
+export const LearningLiveSessionSchema = z.object({
+  title: z.string().min(1).max(100),
+  scheduled_at: z.string().refine(isFutureISODate),
+  max_participants: z.number().int().min(1)
+});
+
+// 使用API: POST /learning/rewards/crypto
+// 関連Entity: crypto_asset_transaction
+export const CryptoRewardRequestSchema = z.object({
+  reward_log_id: z.number().int(),
+  asset_type: z.enum(['BTC', 'ETH', 'SFR']),
+  amount: z.number().min(0)
+});
+
+6️⃣ レスポンス型定義と責務コメント
+
+export type LearningSpaceCreateResponse = {
+  spaceId: number;
+};
+
+export type LearningModeConfig = {
+  ui_config: Record<string, unknown>;
+  feature_flags: Record<string, boolean>;
+};
+
+export type LearningContentDetail = {
+  title: string;
+  type: 'VIDEO' | 'MATERIAL';
+  url: string;
+  sections: Array<{
+    title: string;
+    order: number;
+    materials: Array<{ text: string; media_url?: string }>;
+  }>;
+};
+
+export type LearningProgress = {
+  content_id: number;
+  progress_percent: number;
+};
+
+export type LearningLiveSessionDetail = {
+  title: string;
+  scheduled_at: string;
+  max_participants: number;
+  feedbacks: Array<{ user_id: number; feedback: string }>;
+  qna: Array<{ question: string; answer: string }>;
+};
+
+export type LearningQuizDetail = {
+  title: string;
+  questions: Array<{ question: string; options: string[]; answer: string }>;
+};
+
+export type LearningShakyoDetail = {
+  source_text: string;
+  category: string;
+};
+
+export type LearningAiReport = {
+  summary: string;
+};
+
+export type LearningSubscriptionPlanDetail = {
+  monthly_fee: number;
+  currency: string;
+};
+
+export type LearningCourseFeeDetail = {
+  price: number;
+  currency: string;
+};
+
+7️⃣ バリデーションルールとエラーレスポンス標準化
+
+必須項目の未入力時は400エラー
+
+型不一致時は422エラー
+
+存在しないID指定時は404エラー
+
+権限不足時は403エラー
+
+8️⃣ テストケース設計（例）
+
+学習空間作成時の正常系・異常系
+
+コンテンツ投稿時のURLバリデーション
+
+進捗登録時の境界値テスト（0%, 100%）
+
+ライブ授業の最大参加数制限テスト
+
+クイズ作成時の選択肢数チェック
+
+9️⃣ OpenAPI連携（方針）
+
+openapi.yamlをGitHub管理
+
+CIで型生成とSDKビルドを自動化
+
+バージョン管理とCHANGELOG整備
+
+🔟 SDK設計（SFRM連携）
+
+目的
+
+SFRMモバイルアプリや運営ツールからのAPI呼び出しを簡素化
+
+型安全な開発体験の提供
+
+設計方針
+
+TypeScriptベースのSDKを提供
+
+OpenAPIから自動生成された型とZodスキーマを活用
+
+AxiosベースのHTTPクライアントを内包
+
+機能例
+
+import axios from 'axios';
+import { LearningSpaceCreateSchema } from './schemas';
+
+export async function createLearningSpace(data: unknown): Promise<number> {
+  const parsed = LearningSpaceCreateSchema.parse(data);
+  const res = await axios.post('/learning/spaces', parsed);
+  return res.data.spaceId;
+}
+
+export async function getLearningConfig(spaceId: number): Promise<LearningModeConfig> {
+  const res = await axios.get(`/learning/spaces/${spaceId}/config`);
+  return res.data;
+}
+
+1️⃣1️⃣ CI/CD連携とSDK利用ガイド（ドラフト）
+
+CI/CD連携方針
+
+GitHub Actionsを用いたSDKの自動ビルド・テスト・公開
+
+openapi.yamlの更新をトリガーに型生成とSDK再ビルド
+
+npmパッケージとして @sfr/sdk を公開
+
+SDK利用ガイド（ドラフト）
+
+インストール
+
+npm install @sfr/sdk
+
+初期化
+
+import { createLearningSpace } from '@sfr/sdk';
+
+const spaceId = await createLearningSpace({
+  name: 'SFR学習空間',
+  mode: 'SCHOOL'
+});
+
+エラーハンドリング
+
+try {
+  await createLearningSpace({ name: '', mode: 'UNKNOWN' });
+} catch (e) {
+  if (e instanceof ZodError) {
+    console.error('バリデーションエラー:', e.errors);
+  }
+}
+
+API一覧と型補完
+
+VSCodeでの型補完対応
+
+openapi.yaml由来の型定義により、引数・戻り値の安全性を確保
+
+今後の展望
+
+SDKのバージョン管理とCHANGELOG整備
+
+SFRMアプリとの統合テスト
+
+SDK利用者向けドキュメントサイト構築
+
+1️⃣2️⃣ 用語集・命名規則・設計思想
+
+用語集
+
+SFR：Soundtrack For Revolution（プロジェクト名）
+
+SFRM：SFRのモバイルアプリ
+
+DTO：Data Transfer Object（API入出力用の型）
+
+Zod：TypeScript用のスキーマバリデーションライブラリ
+
+OpenAPI：API仕様記述フォーマット
+
+命名規則
+
+テーブル名は learning_ プレフィックスで統一
+
+DTO名は LearningXxxDto 形式
+
+スキーマ名は LearningXxxSchema 形式
+
+APIパスは /learning/ で始める
+
+設計思想
+
+モード切替によるUI・機能の柔軟な最適化
+
+学習・交流・報酬の統合設計
+
+AI・ゲーミフィケーション・PR連携による拡張性
+
+型安全・自動化・SDK化による開発効率の最大化
+
+
+―――――――――――――――ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+!-- このページはsfr.tokyoの学習空間機能に関する実装進捗・会話履歴を記録するためのログです -->
+
+SFR学習空間 実装ログ（sfr_learning_log）
+
+このページは sfr_featur_learning から引き継がれています。設計書の実態は sfr_featur_learning にあり、こちらはその設計書をもとに GitHub Copilot Pro が VS Code 上でプログラム作成してくれている「実装ログ」や、次に行う実装についての相談などを記録するページになります。
+
+1️⃣ 実装進捗（時系列）
+
+YYYY-MM-DD：learning_space テーブルと LearningSpaceCreateDto 実装完了
+
+YYYY-MM-DD：learning_content テーブルと LearningContentDto 実装完了
+
+YYYY-MM-DD：learning_progress テーブルと LearningProgressDto 実装完了
+
+YYYY-MM-DD：learning_live_session テーブルと LearningLiveSessionDto 実装完了
+
+YYYY-MM-DD：learning_quiz テーブルと LearningQuizDto 実装完了
+
+YYYY-MM-DD：learning_badge テーブルと LearningBadgeDto 実装完了
+
+YYYY-MM-DD：learning_point テーブルと LearningPointDto 実装完了
+
+YYYY-MM-DD：learning_user_badge テーブルと LearningUserBadgeDto 実装完了
+
+YYYY-MM-DD：learning_ranking テーブルと LearningRankingDto 実装完了
+
+YYYY-MM-DD：learning_ai_log テーブルと LearningAiLogDto 実装完了
+
+YYYY-MM-DD：learning_simulation テーブルと LearningSimulationDto 実装完了
+
+YYYY-MM-DD：learning_shakyo テーブルと LearningShakyoDto 実装完了
+
+YYYY-MM-DD：learning_survey テーブルと LearningSurveyDto 実装完了
+
+YYYY-MM-DD：learning_subscription_plan テーブルと LearningSubscriptionPlanDto 実装完了
+
+YYYY-MM-DD：learning_course_fee テーブルと LearningCourseFeeDto 実装完了
+
+※以降、実装が完了した順に追記
+
+2️⃣ Copilot Proとの会話履歴（抜粋）
+
+3️⃣ 実装方針・指示履歴
+
+learning_live_session は max_participants を必須にする
+
+learning_quiz の questions はJSON構造で選択肢と正解を含む
+
+learning_shakyo は source_text のカテゴリ分類を追加
+
+learning_subscription_plan は monthly_fee に @Min(0) バリデーションを追加
+
+learning_course_fee は currency を VARCHAR 型にし、isFree と sfrRewardEligible の組み合わせで報酬可否を制御
+
+4️⃣ 気づき・修正履歴
+
+learning_course_fee の currency を DECIMAL → VARCHAR に修正
+
+learning_ai_report の summary は TEXT 型で十分
+
+learning_subscription_plan の monthly_fee に min(0) バリデーション追加
+
+5️⃣ 実装完了内容（LearningContent関連）
+
+📁 エンティティ（Entity）
+
+LearningContent: コンテンツ情報（タイトル、タイプ、URL、説明）
+
+LearningSection: セクション情報（タイトル、表示順序）
+
+LearningMaterial: マテリアル情報（テキスト、メディアURL、表示順序）
+
+📁 DTO（Data Transfer Object）
+
+LearningContentDto: コンテンツ詳細DTO
+
+LearningContentCreateDto: コンテンツ作成DTO
+
+LearningContentCreateResponse: コンテンツ作成レスポンス
+
+LearningSectionDto: セクションDTO
+
+LearningMaterialDto: マテリアルDTO
+
+📁 Repository
+
+LearningContentRepository: 学習空間別検索、タイプ別検索、セクション含む詳細取得
+
+LearningSectionRepository: コンテンツ別検索、マテリアル含む詳細取得
+
+LearningMaterialRepository: セクション別検索、表示順序管理
+
+📁 Mapper（MapStruct）
+
+LearningContentMapper: DTO⇔Entity変換
+
+LearningSectionMapper: DTO⇔Entity変換
+
+LearningMaterialMapper: DTO⇔Entity変換
+
+📁 Service
+
+LearningContentService: CRUD操作、学習空間別取得、タイプ別フィルタリング
+
+LearningSectionService: CRUD操作、コンテンツ別取得
+
+LearningMaterialService: CRUD操作、セクション別取得
+
+📁 Controller
+
+LearningContentController: REST API エンドポイント
+
+POST /api/learning/contents - コンテンツ作成
+
+GET /api/learning/contents - コンテンツ一覧取得（学習空間ID、タイプフィルタ対応）
+
+GET /api/learning/contents/{id} - コンテンツ詳細取得
+
+PUT /api/learning/contents/{id} - コンテンツ更新
+
+DELETE /api/learning/contents/{id} - コンテンツ削除
+
+📁 Exception
+
+EntityNotFoundException: エンティティ未存在例外
+
+InvalidRequestException: 不正リクエスト例外
+
+📁 テスト
+
+LearningContentControllerSecurityTest: JWT認証統合テスト（8テストケース）
+
+✅ 動作確認済み
+
+Maven コンパイル: 全ての依存関係が正しく解決され、MapStruct による自動生成も成功
+
+Entity 関係: 階層構造（Content→Section→Material）が正しく設定
+
+Repository: カスタムクエリメソッドが適切に定義
+
+Service: ビジネスロジックと例外ハンドリングが実装済み
+
+Controller: RESTful API の設計に従ったエンドポイント
+
+🔧 今後の課題
+
+セキュリティテスト: JWTフィルターの設定を調整する必要がある
+
+セクション・マテリアル用Controller: LearningSection、LearningMaterial 専用のControllerも作成可能
+
+統合テスト: 実際のデータベースを使ったE2Eテストの追加
+
+6️⃣ 実装完了内容（LearningLiveSession関連）
+
+📁 エンティティ（Entity）
+
+LearningLiveSession: セッション情報（id, ownerId, title, scheduledAt, maxParticipants, createdAt, updatedAt）
+
+📁 DTO（Data Transfer Object）
+
+LearningLiveSessionDto: Jakarta Validationによるバリデーション（title: @NotBlank + @Size(min=1, max=100), scheduledAt: @NotNull + @Future, maxParticipants: @NotNull + @Min(1), ownerId: @NotNull）
+
+LearningLiveSessionCreateResponse: セッション作成レスポンス用DTO
+
+📁 Repository
+
+LearningLiveSessionRepository: findByOwnerIdOrderByScheduledAtAsc, findByScheduledAtBetweenOrderByScheduledAtAsc, findByScheduledAtAfterOrderByScheduledAtAsc, findByOwnerIdAndId, countByOwnerId
+
+📁 Mapper（MapStruct）
+
+LearningLiveSessionMapper: DTO⇔Entity変換（@Mappingでid, createdAt, updatedAtを除外）
+
+📁 Service
+
+LearningLiveSessionService: CRUD操作、未来日時チェック、例外処理（EntityNotFoundException, IllegalArgumentException）、@Transactionalによる読み取り専用・更新操作の区別
+
+📁 Controller
+
+LearningLiveSessionController: REST API エンドポイント
+
+POST /api/learning/live/sessions - セッション作成
+
+GET /api/learning/live/sessions/{id} - セッション詳細取得
+
+GET /api/learning/live/sessions?ownerId=xxx - セッション一覧取得
+
+PUT /api/learning/live/sessions/{id} - セッション更新
+
+DELETE /api/learning/live/sessions/{id} - セッション削除
+
+@Validによるリクエストバリデーション、適切なHTTPステータスコード返却
+
+📁 テスト
+
+LearningLiveSessionControllerSecurityTest: JWT認証統合テスト（7テストケース）
+
+✅ 実装特徴
+
+バリデーション: DTOレベル（Jakarta Validation）、サービスレベル（未来日時チェック）、コントローラーレベル（@Valid）
+
+例外処理: EntityNotFoundException, IllegalArgumentException
+
+MapStruct統合: 自動DTO⇔Entity変換、コンパイル時コード生成
+
+Spring Boot統合: @Transactional, @Service, @Repository, RESTful API設計
+
+データベース設計: learning_live_sessionテーブル、インデックス最適化（owner_id, scheduled_at）、外部キー制約対応
+
+7️⃣ 実装完了内容（LearningProgress関連）
+
+📁 エンティティ（Entity）
+
+LearningProgress: ユーザーとコンテンツ間の進捗追跡（0-100%の進捗率、完了判定、タイムスタンプ自動更新、ユニーク制約）
+
+📁 DTO（Data Transfer Object）
+
+LearningProgressDto: バリデーション付きデータ転送（進捗率の範囲チェック、UUID対応ユーザーID）
+
+📁 Repository
+
+LearningProgressRepository: ユーザー別進捗取得、学習空間内フィルタリング、完了統計・平均進捗計算、ランキング機能、期間指定検索
+
+📁 Mapper（MapStruct）
+
+LearningProgressMapper: DTO⇔Entity変換（フィールド除外設定、MapStruct自動コード生成）
+
+📁 Service
+
+LearningProgressService: 進捗登録・更新ロジック、統計計算、エラーハンドリング
+
+📁 Controller
+
+LearningProgressController: REST API エンドポイント
+
+POST /learning/progress - 進捗登録・更新
+
+GET /learning/progress - 認証ユーザーの進捗取得
+
+GET /learning/progress/{userId} - ユーザー進捗取得
+
+GET /learning/progress/{userId}/spaces/{spaceId} - 学習空間内進捗取得
+
+GET /learning/progress/{userId}/stats - ユーザー学習統計取得
+
+GET /learning/progress/spaces/{spaceId}/ranking - 進捗ランキング取得
+
+DELETE /learning/progress/{userId}/contents/{contentId} - 進捗削除（自分の進捗のみ削除可能）
+
+📁 テスト
+
+LearningProgressControllerSecurityTest: セキュリティテスト、バリデーションテスト、認証・認可テスト
+
+✅ 実装品質
+
+Maven コンパイル成功
+
+MapStruct 自動コード生成動作確認
+
+Jakarta Validation 統合
+
+JWT認証・認可実装
+
+適切な例外処理
+
+セキュリティテスト実装済み
+
+8️⃣ 実装完了内容（LearningQuiz関連）
+
+📁 エンティティ（Entity）
+
+LearningQuiz: JSON形式でクイズ問題を格納するエンティティ。内部クラスQuizQuestionで問題・選択肢・正解を管理。自動バリデーション機能付き。
+
+📁 DTO（Data Transfer Object）
+
+LearningQuizDto: ネストしたQuizQuestionDtoクラスを含み、包括的なJakarta ValidationアノテーションとカスタムバリデーションisAnswerValid()メソッドを実装。
+
+📁 Repository
+
+LearningQuizRepository: 学習空間ベースのクイズ検索機能、タイトル検索・期間指定検索、統計情報取得クエリ、最近のクイズ取得機能を提供。
+
+📁 Mapper（MapStruct）
+
+LearningQuizMapper: Entity-DTO自動変換。カスタム@NamedメソッドでJSONリスト変換、フィールド除外設定。
+
+📁 Service
+
+LearningQuizService: CRUD操作、学習空間存在チェック、タイトル重複チェック、問題の正解バリデーション、統計情報取得などを実装。
+
+📁 Controller
+
+LearningQuizController: RESTful API設計。@PreAuthorizeによる認証制御、検索・統計・期間指定など豊富なエンドポイント、適切なHTTPステータス返却。
+
+📁 テスト
+
+LearningQuizServiceTest: 17件のテストケース全て成功。正常系・異常系の網羅的テスト、モックを使用した単体テスト、エラーハンドリングテスト。
+
+✅ 実装品質
+
+Maven ビルド成功
+
+MapStruct 自動生成成功
+
+包括的テストカバレッジ
+
+9️⃣ 実装完了内容（LearningBadge・LearningPoint・LearningRanking・LearningAiLog・LearningSimulation・LearningShakyo・LearningSurvey関連）
+
+📁 エンティティ（Entity）
+
+LearningBadge: バッジマスター情報
+
+LearningPoint: ユーザーポイント管理
+
+LearningUserBadge: ユーザーバッジ獲得記録
+
+LearningRanking: ランキング情報
+
+LearningAiLog: AI学習ログ情報
+
+LearningSimulation: シミュレーション情報
+
+LearningShakyo: 写経情報
+
+LearningSurvey: アンケート情報
+
+📁 DTO（Data Transfer Object）
+
+LearningBadgeDto: バッジ情報転送
+
+LearningPointDto: ポイント情報転送
+
+LearningUserBadgeDto: ユーザーバッジ獲得記録転送
+
+LearningRankingDto: ランキング情報転送
+
+LearningAiLogDto: AI学習ログ転送
+
+LearningSimulationDto: シミュレーション情報転送
+
+LearningShakyoDto: 写経情報転送
+
+LearningSurveyDto: アンケート情報転送
+
+📁 Repository
+
+LearningBadgeRepository: バッジ検索・条件チェック
+
+LearningPointRepository: ポイント管理・ランキング
+
+LearningUserBadgeRepository: バッジ獲得履歴
+
+LearningRankingRepository: ランキング取得・統計・履歴管理
+
+LearningAiLogRepository: AIログ検索・統計・エラー分析
+
+LearningSimulationRepository: シミュレーション検索・統計・状態管理
+
+LearningShakyoRepository: 写経検索・統計・進捗管理
+
+LearningSurveyRepository: アンケート検索・統計・リマインダー管理
+
+📁 Service
+
+LearningBadgeService: バッジ管理・自動付与ロジック
+
+LearningRankingService: ランキング更新・履歴管理・統計分析
+
+LearningAiLogService: AIログ記録・セッション管理・統計分析・品質分析
+
+LearningSimulationService: シミュレーション管理・進行状況更新・統計分析
+
+LearningShakyoService: 写経管理・文字入力処理・統計分析・ランキング生成
+
+LearningSurveyService: アンケート管理・進捗追跡・統計分析・リマインダー処理
+
+📁 Controller
+
+LearningRankingController: REST API（14エンドポイント）
+
+LearningAiLogController: REST API（26エンドポイント）
+
+LearningSimulationController: REST API（25エンドポイント）
+
+LearningShakyoController: REST API（30エンドポイント）
+
+LearningSurveyController: REST API（30エンドポイント）
+
+✅ 主要機能
+
+バッジシステム: 7種類のバッジタイプ（進捗、クイズ、コンテンツ、ポイント、連続学習、参加、特別）
+
+ポイントシステム: 6種類のポイントタイプ（総合、クイズ、コンテンツ、参加、連続、ボーナス）
+
+ランキングシステム: 8種類のランキングタイプ（ポイント、バッジ、進捗、習熟度、総合、連続、週間、月間）
+
+AI学習ログ: 8種類のAIタイプ、8種類のインタラクションタイプ、セッション管理、品質分析、エラー追跡、統計分析
+
+シミュレーション機能: ライフサイクル管理、進行状況トラッキング、スコアリング、状態管理、統計分析、タイムアウト処理
+
+写経機能: リアルタイム文字入力、スコア・ランキング、統計分析、ヒント機能、進捗追跡
+
+アンケート機能: ライフサイクル管理、評価システム、統計分析、検索・リマインダー機能
+
+REST API: 合計120以上のエンドポイント
+
+🔟 実装完了状況（全体概要）
+
+✅ 実装済み（基盤部分）
+
+学習空間管理
+
+LearningSpace エンティティ（基本CRUD）
+
+LearningModeConfig エンティティ（設定管理）
+
+コンテンツ管理
+
+LearningContent エンティティ
+
+LearningSection エンティティ
+
+LearningMaterial エンティティ
+
+ライブセッション管理
+
+LearningLiveSession エンティティ
+
+進捗管理
+
+LearningProgress エンティティ
+
+クイズ機能
+
+LearningQuiz エンティティ
+
+ゲーミフィケーション機能
+
+LearningBadge エンティティ
+
+LearningPoint エンティティ
+
+LearningUserBadge エンティティ
+
+LearningRanking エンティティ
+
+AI支援機能
+
+LearningAiLog エンティティ
+
+インタラクティブコンテンツ機能
+
+LearningSimulation エンティティ
+
+LearningShakyo エンティティ
+
+LearningSurvey エンティティ
+
+課金・サブスクリプション機能
+
+LearningSubscriptionPlan エンティティ
+
+LearningCourseFee エンティティ
+
+❌ 未実装（設計書記載の主要機能）
+
+コミュニティ機能系（4テーブル）
+
+learning_forum - フォーラム
+
+learning_topic - トピック管理
+
+learning_comment - コメント機能
+
+learning_feedback - フィードバック
+
+FAQ・サポート系（1テーブル）
+
+learning_ai_faq - AI FAQ
+
+🚧 追加実装が必要な作業
+
+残り6エンティティの実装
+
+80以上のAPIエンドポイントの実装
+
+AI統合機能（学習分析、レポート生成）
+
+決済・サブスクリプション機能
+
+コミュニティ機能（フォーラム、コメント）
+
+TypeScript SDKの自動生成
+
+OpenAPI仕様書の整備
+
+現在は課金・サブスクリプション機能まで完成した段階です。次はコミュニティ機能やFAQ機能などの補完機能に進む予定です。
+
+🔗 設計書リンク
+
+詳細設計は sfr_featur_learning を参照

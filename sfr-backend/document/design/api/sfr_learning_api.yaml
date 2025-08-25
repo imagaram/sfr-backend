@@ -1,0 +1,1911 @@
+openapi: 3.0.0
+info:
+  title: SFR.TOKYO Learning API
+  description: |
+    SFR.TOKYO 学習空間機能専用API仕様書
+    
+    ## 🎓 学習空間機能
+    - **学習空間管理**: 学習環境の作成・設定・管理
+    - **学習コンテンツ**: 教材の管理・配信・評価
+    - **学習進捗**: 学習履歴・進捗状況の追跡
+    - **クイズ・テスト**: 理解度チェック機能
+    - **ライブセッション**: リアルタイム学習サポート
+    - **学習分析**: 学習データの分析・レポート
+    
+    ## 🔐 認証
+    - JWT Bearer Token認証
+    - 学習空間への参加権限管理
+    
+    ## 📊 学習モード
+    - **SCHOOL**: 学校形式（講師主導、体系的学習）
+    - **SALON**: サロン形式（ディスカッション重視）
+    - **FANCLUB**: ファンクラブ形式（コミュニティ交流）
+    
+  version: 1.0.0
+  contact:
+    name: SFR.TOKYO Learning Team
+    email: learning@sfr.tokyo
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.sfr.tokyo/api/learning
+    description: 本番環境
+  - url: https://dev-api.sfr.tokyo/api/learning
+    description: 開発環境
+  - url: http://localhost:8080/api/learning
+    description: ローカル開発環境
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: learning-spaces
+    description: 🎓 学習空間管理
+  - name: learning-content
+    description: 📚 学習コンテンツ管理
+  - name: learning-progress
+    description: 📈 学習進捗管理
+  - name: learning-quiz
+    description: ❓ クイズ・テスト機能
+  - name: learning-live-sessions
+    description: 🎥 ライブセッション管理
+  - name: learning-comments
+    description: 💭 学習コメント・ディスカッション
+  - name: learning-analytics
+    description: 📊 学習分析・レポート
+  - name: learning-materials
+    description: 📁 学習資料管理
+  - name: learning-assignments
+    description: 📝 課題・宿題管理
+
+paths:
+  # ======================================
+  # 🎓 学習空間管理エンドポイント
+  # ======================================
+  /spaces:
+    get:
+      tags:
+        - learning-spaces
+      summary: 学習空間一覧取得
+      description: |
+        認証済みユーザーがアクセス可能な学習空間の一覧を取得します。
+        参加中の学習空間と管理している学習空間を含みます。
+      operationId: getLearningSpaces
+      parameters:
+        - name: mode
+          in: query
+          description: 学習モードでフィルタリング
+          required: false
+          schema:
+            $ref: '#/components/schemas/LearningMode'
+        - name: status
+          in: query
+          description: 学習空間のステータスでフィルタリング
+          required: false
+          schema:
+            $ref: '#/components/schemas/LearningSpaceStatus'
+        - name: page
+          in: query
+          description: ページ番号（0から開始）
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: ページサイズ
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 学習空間一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningSpaceListResponse'
+              example:
+                content:
+                  - id: 1
+                    name: "プログラミング基礎講座"
+                    description: "初心者向けのプログラミング学習空間"
+                    mode: "SCHOOL"
+                    status: "ACTIVE"
+                    memberCount: 25
+                    createdAt: "2025-08-01T10:00:00Z"
+                    isOwner: true
+                  - id: 2
+                    name: "AI技術サロン"
+                    description: "AI技術についてディスカッションする学習サロン"
+                    mode: "SALON"
+                    status: "ACTIVE"
+                    memberCount: 12
+                    createdAt: "2025-08-05T14:30:00Z"
+                    isOwner: false
+                totalElements: 2
+                totalPages: 1
+                size: 20
+                number: 0
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - learning-spaces
+      summary: 学習空間作成
+      description: |
+        新しい学習空間を作成します。
+        作成者は自動的に学習空間の管理者となります。
+      operationId: createLearningSpace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LearningSpaceCreateRequest'
+            example:
+              name: "Web開発マスタークラス"
+              description: "HTML、CSS、JavaScriptを使ったWeb開発の実践講座"
+              mode: "SCHOOL"
+              isPublic: true
+              maxMembers: 50
+              settings:
+                allowComments: true
+                allowFileUpload: true
+                moderationRequired: false
+      responses:
+        '201':
+          description: 学習空間作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningSpaceResponse'
+              example:
+                id: 3
+                name: "Web開発マスタークラス"
+                description: "HTML、CSS、JavaScriptを使ったWeb開発の実践講座"
+                mode: "SCHOOL"
+                status: "ACTIVE"
+                isPublic: true
+                maxMembers: 50
+                memberCount: 1
+                ownerId: "123e4567-e89b-12d3-a456-426614174000"
+                createdAt: "2025-08-18T10:30:00Z"
+                updatedAt: "2025-08-18T10:30:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /spaces/{spaceId}:
+    get:
+      tags:
+        - learning-spaces
+      summary: 学習空間詳細取得
+      description: |
+        指定された学習空間の詳細情報を取得します。
+        参加権限がある場合のみアクセス可能です。
+      operationId: getLearningSpaceById
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+            example: 1
+      responses:
+        '200':
+          description: 学習空間詳細取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningSpaceDetailResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - learning-spaces
+      summary: 学習空間設定更新
+      description: |
+        学習空間の設定を更新します。
+        管理者権限が必要です。
+      operationId: updateLearningSpace
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LearningSpaceUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningSpaceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - learning-spaces
+      summary: 学習空間削除
+      description: |
+        学習空間を削除します。
+        管理者権限が必要です。削除前にメンバーへの通知が行われます。
+      operationId: deleteLearningSpace
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /spaces/{spaceId}/join:
+    post:
+      tags:
+        - learning-spaces
+      summary: 学習空間参加
+      description: |
+        指定された学習空間に参加します。
+        公開学習空間の場合は即座に参加、非公開の場合は申請となります。
+      operationId: joinLearningSpace
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 参加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinResponse'
+        '202':
+          description: 参加申請受付
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: 既に参加済み
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /spaces/{spaceId}/leave:
+    post:
+      tags:
+        - learning-spaces
+      summary: 学習空間退出
+      description: |
+        学習空間から退出します。
+        管理者の場合は、他の管理者がいることを確認してから退出可能です。
+      operationId: leaveLearningSpace
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 退出成功
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: 退出不可（唯一の管理者など）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ======================================
+  # 📚 学習コンテンツ管理エンドポイント
+  # ======================================
+  /spaces/{spaceId}/content:
+    get:
+      tags:
+        - learning-content
+      summary: 学習コンテンツ一覧取得
+      description: |
+        指定された学習空間の学習コンテンツ一覧を取得します。
+        コンテンツタイプや公開状態でフィルタリング可能です。
+      operationId: getLearningContent
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+        - name: contentType
+          in: query
+          description: コンテンツタイプでフィルタリング
+          required: false
+          schema:
+            $ref: '#/components/schemas/ContentType'
+        - name: published
+          in: query
+          description: 公開状態でフィルタリング
+          required: false
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          description: ページ番号
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          description: ページサイズ
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: コンテンツ一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningContentListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - learning-content
+      summary: 学習コンテンツ作成
+      description: |
+        新しい学習コンテンツを作成します。
+        管理者または講師権限が必要です。
+      operationId: createLearningContent
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LearningContentCreateRequest'
+      responses:
+        '201':
+          description: コンテンツ作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningContentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /spaces/{spaceId}/content/{contentId}:
+    get:
+      tags:
+        - learning-content
+      summary: 学習コンテンツ詳細取得
+      description: |
+        指定された学習コンテンツの詳細情報を取得します。
+        進捗情報も含まれます。
+      operationId: getLearningContentById
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+        - name: contentId
+          in: path
+          required: true
+          description: コンテンツID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: コンテンツ詳細取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningContentDetailResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - learning-content
+      summary: 学習コンテンツ更新
+      description: |
+        学習コンテンツの情報を更新します。
+        管理者または作成者権限が必要です。
+      operationId: updateLearningContent
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+        - name: contentId
+          in: path
+          required: true
+          description: コンテンツID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LearningContentUpdateRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningContentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - learning-content
+      summary: 学習コンテンツ削除
+      description: |
+        学習コンテンツを削除します。
+        管理者または作成者権限が必要です。
+      operationId: deleteLearningContent
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+        - name: contentId
+          in: path
+          required: true
+          description: コンテンツID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ======================================
+  # 📈 学習進捗管理エンドポイント
+  # ======================================
+  /spaces/{spaceId}/progress:
+    get:
+      tags:
+        - learning-progress
+      summary: 学習進捗状況取得
+      description: |
+        指定された学習空間での自分の学習進捗状況を取得します。
+        完了したコンテンツや評価などの情報が含まれます。
+      operationId: getLearningProgress
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 進捗状況取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearningProgressResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /spaces/{spaceId}/content/{contentId}/progress:
+    post:
+      tags:
+        - learning-progress
+      summary: 学習進捗記録
+      description: |
+        指定されたコンテンツの学習進捗を記録します。
+        完了状況や学習時間、評価などを記録できます。
+      operationId: recordLearningProgress
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+        - name: contentId
+          in: path
+          required: true
+          description: コンテンツID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgressRecordRequest'
+      responses:
+        '200':
+          description: 進捗記録成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProgressRecordResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ======================================
+  # ❓ クイズ・テスト機能エンドポイント
+  # ======================================
+  /spaces/{spaceId}/quizzes:
+    get:
+      tags:
+        - learning-quiz
+      summary: クイズ一覧取得
+      description: |
+        指定された学習空間のクイズ一覧を取得します。
+        自分の回答状況も含まれます。
+      operationId: getQuizzes
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+        - name: difficulty
+          in: query
+          description: 難易度でフィルタリング
+          required: false
+          schema:
+            $ref: '#/components/schemas/QuizDifficulty'
+        - name: status
+          in: query
+          description: 回答状況でフィルタリング
+          required: false
+          schema:
+            $ref: '#/components/schemas/QuizStatus'
+      responses:
+        '200':
+          description: クイズ一覧取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - learning-quiz
+      summary: クイズ作成
+      description: |
+        新しいクイズを作成します。
+        管理者または講師権限が必要です。
+      operationId: createQuiz
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizCreateRequest'
+      responses:
+        '201':
+          description: クイズ作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /spaces/{spaceId}/quizzes/{quizId}/attempt:
+    post:
+      tags:
+        - learning-quiz
+      summary: クイズ回答提出
+      description: |
+        クイズの回答を提出します。
+        回答後は結果と解説が表示されます。
+      operationId: submitQuizAnswer
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          description: 学習空間ID
+          schema:
+            type: integer
+            format: int64
+        - name: quizId
+          in: path
+          required: true
+          description: クイズID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizAnswerRequest'
+      responses:
+        '200':
+          description: 回答提出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizResultResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          description: 既に回答済み
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer Token認証
+        
+        **取得方法:**
+        1. メイン認証API `/api/v1/auth/authenticate` でトークンを取得
+        2. `Authorization: Bearer <token>` ヘッダーに設定
+        
+        **有効期限:** 24時間
+
+  schemas:
+    # ======================================
+    # 🎓 学習空間関連スキーマ
+    # ======================================
+    LearningSpaceCreateRequest:
+      type: object
+      required:
+        - name
+        - mode
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 学習空間名
+          example: "Web開発マスタークラス"
+        description:
+          type: string
+          maxLength: 1000
+          description: 学習空間の説明
+          example: "HTML、CSS、JavaScriptを使ったWeb開発の実践講座"
+        mode:
+          $ref: '#/components/schemas/LearningMode'
+        isPublic:
+          type: boolean
+          description: 公開学習空間かどうか
+          default: true
+          example: true
+        maxMembers:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: 最大参加者数
+          example: 50
+        settings:
+          $ref: '#/components/schemas/LearningSpaceSettings'
+
+    LearningSpaceUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 学習空間名
+        description:
+          type: string
+          maxLength: 1000
+          description: 学習空間の説明
+        isPublic:
+          type: boolean
+          description: 公開学習空間かどうか
+        maxMembers:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: 最大参加者数
+        settings:
+          $ref: '#/components/schemas/LearningSpaceSettings'
+
+    LearningSpaceResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: 学習空間ID
+          example: 1
+        name:
+          type: string
+          description: 学習空間名
+          example: "プログラミング基礎講座"
+        description:
+          type: string
+          description: 学習空間の説明
+          example: "初心者向けのプログラミング学習空間"
+        mode:
+          $ref: '#/components/schemas/LearningMode'
+        status:
+          $ref: '#/components/schemas/LearningSpaceStatus'
+        isPublic:
+          type: boolean
+          description: 公開学習空間かどうか
+          example: true
+        maxMembers:
+          type: integer
+          description: 最大参加者数
+          example: 50
+        memberCount:
+          type: integer
+          description: 現在の参加者数
+          example: 25
+        ownerId:
+          type: string
+          format: uuid
+          description: 作成者のユーザーID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        createdAt:
+          type: string
+          format: date-time
+          description: 作成日時
+          example: "2025-08-01T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新日時
+          example: "2025-08-18T10:30:00Z"
+
+    LearningSpaceDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/LearningSpaceResponse'
+        - type: object
+          properties:
+            settings:
+              $ref: '#/components/schemas/LearningSpaceSettings'
+            members:
+              type: array
+              items:
+                $ref: '#/components/schemas/LearningSpaceMember'
+              description: 参加者一覧
+            contentCount:
+              type: integer
+              description: コンテンツ数
+              example: 15
+            quizCount:
+              type: integer
+              description: クイズ数
+              example: 8
+            userRole:
+              $ref: '#/components/schemas/LearningSpaceRole'
+
+    LearningSpaceListResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/LearningSpaceResponse'
+        totalElements:
+          type: integer
+          description: 総件数
+          example: 25
+        totalPages:
+          type: integer
+          description: 総ページ数
+          example: 3
+        size:
+          type: integer
+          description: ページサイズ
+          example: 20
+        number:
+          type: integer
+          description: 現在のページ番号（0から開始）
+          example: 0
+
+    LearningSpaceSettings:
+      type: object
+      properties:
+        allowComments:
+          type: boolean
+          description: コメント機能を許可するか
+          default: true
+          example: true
+        allowFileUpload:
+          type: boolean
+          description: ファイルアップロードを許可するか
+          default: true
+          example: true
+        moderationRequired:
+          type: boolean
+          description: モデレーション（承認）が必要か
+          default: false
+          example: false
+        autoProgressTracking:
+          type: boolean
+          description: 自動進捗追跡を有効にするか
+          default: true
+          example: true
+        notificationSettings:
+          $ref: '#/components/schemas/NotificationSettings'
+
+    NotificationSettings:
+      type: object
+      properties:
+        newContentNotification:
+          type: boolean
+          description: 新しいコンテンツの通知
+          default: true
+        assignmentDueNotification:
+          type: boolean
+          description: 課題期限の通知
+          default: true
+        discussionNotification:
+          type: boolean
+          description: ディスカッションの通知
+          default: false
+
+    LearningSpaceMember:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: ユーザーID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        username:
+          type: string
+          description: ユーザー名
+          example: "田中太郎"
+        role:
+          $ref: '#/components/schemas/LearningSpaceRole'
+        joinedAt:
+          type: string
+          format: date-time
+          description: 参加日時
+          example: "2025-08-05T14:30:00Z"
+        lastActiveAt:
+          type: string
+          format: date-time
+          description: 最終活動日時
+          example: "2025-08-17T16:45:00Z"
+        progressPercentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: 進捗率（%）
+          example: 75
+
+    JoinResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - JOINED
+            - PENDING_APPROVAL
+          description: 参加状況
+          example: "JOINED"
+        message:
+          type: string
+          description: ステータスメッセージ
+          example: "学習空間に参加しました"
+        spaceId:
+          type: integer
+          format: int64
+          description: 学習空間ID
+          example: 1
+
+    # ======================================
+    # 📚 学習コンテンツ関連スキーマ
+    # ======================================
+    LearningContentCreateRequest:
+      type: object
+      required:
+        - title
+        - contentType
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: コンテンツタイトル
+        description:
+          type: string
+          maxLength: 2000
+          description: コンテンツ説明
+        contentType:
+          $ref: '#/components/schemas/ContentType'
+        content:
+          type: string
+          description: テキストコンテンツ（contentTypeがTEXTの場合）
+        file:
+          type: string
+          format: binary
+          description: ファイル（VIDEO、AUDIO、DOCUMENTの場合）
+        duration:
+          type: integer
+          minimum: 0
+          description: 学習予想時間（分）
+        difficulty:
+          $ref: '#/components/schemas/ContentDifficulty'
+        tags:
+          type: array
+          items:
+            type: string
+          description: タグ
+        isPublished:
+          type: boolean
+          description: 公開するか
+          default: false
+        order:
+          type: integer
+          minimum: 0
+          description: 表示順序
+
+    LearningContentUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: コンテンツタイトル
+        description:
+          type: string
+          maxLength: 2000
+          description: コンテンツ説明
+        content:
+          type: string
+          description: テキストコンテンツ
+        file:
+          type: string
+          format: binary
+          description: ファイル
+        duration:
+          type: integer
+          minimum: 0
+          description: 学習予想時間（分）
+        difficulty:
+          $ref: '#/components/schemas/ContentDifficulty'
+        tags:
+          type: array
+          items:
+            type: string
+          description: タグ
+        isPublished:
+          type: boolean
+          description: 公開するか
+        order:
+          type: integer
+          minimum: 0
+          description: 表示順序
+
+    LearningContentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: コンテンツID
+          example: 1
+        title:
+          type: string
+          description: コンテンツタイトル
+          example: "HTML基礎：タグの使い方"
+        description:
+          type: string
+          description: コンテンツ説明
+          example: "HTMLの基本的なタグの使い方を学習します"
+        contentType:
+          $ref: '#/components/schemas/ContentType'
+        contentUrl:
+          type: string
+          format: uri
+          description: コンテンツファイルのURL
+          example: "https://api.sfr.tokyo/content/video_001.mp4"
+        duration:
+          type: integer
+          description: 学習予想時間（分）
+          example: 30
+        difficulty:
+          $ref: '#/components/schemas/ContentDifficulty'
+        tags:
+          type: array
+          items:
+            type: string
+          description: タグ
+          example: ["HTML", "基礎", "タグ"]
+        isPublished:
+          type: boolean
+          description: 公開されているか
+          example: true
+        order:
+          type: integer
+          description: 表示順序
+          example: 1
+        authorId:
+          type: string
+          format: uuid
+          description: 作成者ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        createdAt:
+          type: string
+          format: date-time
+          description: 作成日時
+          example: "2025-08-10T09:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新日時
+          example: "2025-08-15T14:30:00Z"
+
+    LearningContentDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/LearningContentResponse'
+        - type: object
+          properties:
+            content:
+              type: string
+              description: テキストコンテンツ
+            userProgress:
+              $ref: '#/components/schemas/ContentProgress'
+            ratings:
+              $ref: '#/components/schemas/ContentRatings'
+            prerequisites:
+              type: array
+              items:
+                type: integer
+                format: int64
+              description: 前提となるコンテンツID
+            relatedContent:
+              type: array
+              items:
+                $ref: '#/components/schemas/LearningContentResponse'
+              description: 関連コンテンツ
+
+    LearningContentListResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/LearningContentResponse'
+        totalElements:
+          type: integer
+          description: 総件数
+        totalPages:
+          type: integer
+          description: 総ページ数
+        size:
+          type: integer
+          description: ページサイズ
+        number:
+          type: integer
+          description: 現在のページ番号
+
+    ContentProgress:
+      type: object
+      properties:
+        isCompleted:
+          type: boolean
+          description: 完了したか
+          example: true
+        completedAt:
+          type: string
+          format: date-time
+          description: 完了日時
+          example: "2025-08-16T11:30:00Z"
+        timeSpent:
+          type: integer
+          description: 学習時間（分）
+          example: 45
+        lastAccessedAt:
+          type: string
+          format: date-time
+          description: 最終アクセス日時
+          example: "2025-08-17T09:15:00Z"
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: ユーザー評価（1-5）
+          example: 4
+
+    ContentRatings:
+      type: object
+      properties:
+        averageRating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+          description: 平均評価
+          example: 4.2
+        totalRatings:
+          type: integer
+          description: 評価数
+          example: 28
+        ratingDistribution:
+          type: object
+          properties:
+            "1":
+              type: integer
+              example: 1
+            "2":
+              type: integer
+              example: 2
+            "3":
+              type: integer
+              example: 5
+            "4":
+              type: integer
+              example: 12
+            "5":
+              type: integer
+              example: 8
+          description: 評価分布
+
+    # ======================================
+    # 📈 学習進捗関連スキーマ
+    # ======================================
+    LearningProgressResponse:
+      type: object
+      properties:
+        spaceId:
+          type: integer
+          format: int64
+          description: 学習空間ID
+          example: 1
+        userId:
+          type: string
+          format: uuid
+          description: ユーザーID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        overallProgress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: 全体進捗率（%）
+          example: 75
+        completedContentCount:
+          type: integer
+          description: 完了したコンテンツ数
+          example: 12
+        totalContentCount:
+          type: integer
+          description: 総コンテンツ数
+          example: 16
+        totalTimeSpent:
+          type: integer
+          description: 総学習時間（分）
+          example: 720
+        lastActivity:
+          type: string
+          format: date-time
+          description: 最終学習日時
+          example: "2025-08-17T16:45:00Z"
+        contentProgress:
+          type: array
+          items:
+            type: object
+            properties:
+              contentId:
+                type: integer
+                format: int64
+              contentTitle:
+                type: string
+              progress:
+                $ref: '#/components/schemas/ContentProgress'
+        achievements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Achievement'
+          description: 達成した成果
+
+    ProgressRecordRequest:
+      type: object
+      required:
+        - progressType
+      properties:
+        progressType:
+          type: string
+          enum:
+            - STARTED
+            - IN_PROGRESS
+            - COMPLETED
+          description: 進捗タイプ
+          example: "COMPLETED"
+        timeSpent:
+          type: integer
+          minimum: 0
+          description: 学習時間（分）
+          example: 30
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: コンテンツ評価（1-5）
+          example: 4
+        notes:
+          type: string
+          maxLength: 1000
+          description: 学習メモ
+          example: "HTMLタグの基本的な使い方がよく理解できました"
+
+    ProgressRecordResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: 進捗記録ID
+          example: 1
+        contentId:
+          type: integer
+          format: int64
+          description: コンテンツID
+          example: 1
+        progressType:
+          type: string
+          description: 進捗タイプ
+          example: "COMPLETED"
+        timeSpent:
+          type: integer
+          description: 学習時間（分）
+          example: 30
+        rating:
+          type: integer
+          description: コンテンツ評価
+          example: 4
+        recordedAt:
+          type: string
+          format: date-time
+          description: 記録日時
+          example: "2025-08-17T16:45:00Z"
+        newAchievements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Achievement'
+          description: 新しく獲得した成果
+
+    Achievement:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: 成果ID
+          example: 1
+        title:
+          type: string
+          description: 成果タイトル
+          example: "HTML基礎マスター"
+        description:
+          type: string
+          description: 成果説明
+          example: "HTML基礎コンテンツをすべて完了しました"
+        badgeUrl:
+          type: string
+          format: uri
+          description: バッジ画像URL
+          example: "https://api.sfr.tokyo/badges/html_master.png"
+        earnedAt:
+          type: string
+          format: date-time
+          description: 獲得日時
+          example: "2025-08-17T16:45:00Z"
+
+    # ======================================
+    # ❓ クイズ関連スキーマ
+    # ======================================
+    QuizCreateRequest:
+      type: object
+      required:
+        - title
+        - questions
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: クイズタイトル
+          example: "HTML基礎確認テスト"
+        description:
+          type: string
+          maxLength: 1000
+          description: クイズ説明
+          example: "HTML基礎の理解度を確認するクイズです"
+        difficulty:
+          $ref: '#/components/schemas/QuizDifficulty'
+        timeLimit:
+          type: integer
+          minimum: 0
+          description: 制限時間（分、0は無制限）
+          example: 30
+        passingScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: 合格点（%）
+          example: 70
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizQuestion'
+          minItems: 1
+          description: 問題リスト
+
+    QuizResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: クイズID
+          example: 1
+        title:
+          type: string
+          description: クイズタイトル
+          example: "HTML基礎確認テスト"
+        description:
+          type: string
+          description: クイズ説明
+          example: "HTML基礎の理解度を確認するクイズです"
+        difficulty:
+          $ref: '#/components/schemas/QuizDifficulty'
+        timeLimit:
+          type: integer
+          description: 制限時間（分）
+          example: 30
+        passingScore:
+          type: integer
+          description: 合格点（%）
+          example: 70
+        questionCount:
+          type: integer
+          description: 問題数
+          example: 10
+        authorId:
+          type: string
+          format: uuid
+          description: 作成者ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        createdAt:
+          type: string
+          format: date-time
+          description: 作成日時
+          example: "2025-08-10T09:00:00Z"
+        userAttempts:
+          type: integer
+          description: ユーザーの受験回数
+          example: 2
+        bestScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: ユーザーの最高得点
+          example: 85
+
+    QuizListResponse:
+      type: object
+      properties:
+        quizzes:
+          type: array
+          items:
+            $ref: '#/components/schemas/QuizResponse'
+        totalCount:
+          type: integer
+          description: 総クイズ数
+          example: 5
+
+    QuizQuestion:
+      type: object
+      required:
+        - question
+        - questionType
+        - options
+        - correctAnswer
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: 問題文
+          example: "HTMLでリンクを作成するタグはどれですか？"
+        questionType:
+          type: string
+          enum:
+            - SINGLE_CHOICE
+            - MULTIPLE_CHOICE
+            - TRUE_FALSE
+            - TEXT_INPUT
+          description: 問題タイプ
+          example: "SINGLE_CHOICE"
+        options:
+          type: array
+          items:
+            type: string
+          description: 選択肢（選択問題の場合）
+          example: ["<link>", "<a>", "<href>", "<url>"]
+        correctAnswer:
+          type: string
+          description: 正解（管理者のみ参照）
+          example: "<a>"
+        explanation:
+          type: string
+          maxLength: 1000
+          description: 解説
+          example: "<a>タグはアンカー要素でリンクを作成するために使用します"
+        points:
+          type: integer
+          minimum: 1
+          description: 配点
+          default: 1
+          example: 1
+
+    QuizAnswerRequest:
+      type: object
+      required:
+        - answers
+      properties:
+        answers:
+          type: array
+          items:
+            type: object
+            properties:
+              questionIndex:
+                type: integer
+                minimum: 0
+                description: 問題番号（0から開始）
+              answer:
+                type: string
+                description: 回答
+          description: 回答リスト
+          example:
+            - questionIndex: 0
+              answer: "<a>"
+            - questionIndex: 1
+              answer: "true"
+
+    QuizResultResponse:
+      type: object
+      properties:
+        quizId:
+          type: integer
+          format: int64
+          description: クイズID
+          example: 1
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: 得点（%）
+          example: 85
+        totalQuestions:
+          type: integer
+          description: 総問題数
+          example: 10
+        correctAnswers:
+          type: integer
+          description: 正解数
+          example: 8
+        passed:
+          type: boolean
+          description: 合格したか
+          example: true
+        timeSpent:
+          type: integer
+          description: 回答時間（分）
+          example: 25
+        submittedAt:
+          type: string
+          format: date-time
+          description: 提出日時
+          example: "2025-08-17T16:45:00Z"
+        questionResults:
+          type: array
+          items:
+            type: object
+            properties:
+              questionIndex:
+                type: integer
+              isCorrect:
+                type: boolean
+              userAnswer:
+                type: string
+              correctAnswer:
+                type: string
+              explanation:
+                type: string
+          description: 問題別結果
+
+    # ======================================
+    # 📊 列挙型スキーマ
+    # ======================================
+    LearningMode:
+      type: string
+      enum:
+        - SCHOOL
+        - SALON
+        - FANCLUB
+      description: |
+        学習モード
+        - `SCHOOL`: 学校形式（講師主導、体系的学習）
+        - `SALON`: サロン形式（ディスカッション重視）
+        - `FANCLUB`: ファンクラブ形式（コミュニティ交流）
+
+    LearningSpaceStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - PAUSED
+        - COMPLETED
+        - ARCHIVED
+      description: |
+        学習空間ステータス
+        - `ACTIVE`: アクティブ
+        - `PAUSED`: 一時停止
+        - `COMPLETED`: 完了
+        - `ARCHIVED`: アーカイブ
+
+    LearningSpaceRole:
+      type: string
+      enum:
+        - OWNER
+        - INSTRUCTOR
+        - MEMBER
+        - GUEST
+      description: |
+        学習空間での役割
+        - `OWNER`: 所有者
+        - `INSTRUCTOR`: 講師
+        - `MEMBER`: 参加者
+        - `GUEST`: ゲスト
+
+    ContentType:
+      type: string
+      enum:
+        - TEXT
+        - VIDEO
+        - AUDIO
+        - DOCUMENT
+        - INTERACTIVE
+      description: |
+        コンテンツタイプ
+        - `TEXT`: テキスト
+        - `VIDEO`: 動画
+        - `AUDIO`: 音声
+        - `DOCUMENT`: ドキュメント
+        - `INTERACTIVE`: インタラクティブコンテンツ
+
+    ContentDifficulty:
+      type: string
+      enum:
+        - BEGINNER
+        - INTERMEDIATE
+        - ADVANCED
+        - EXPERT
+      description: |
+        コンテンツ難易度
+        - `BEGINNER`: 初級
+        - `INTERMEDIATE`: 中級
+        - `ADVANCED`: 上級
+        - `EXPERT`: エキスパート
+
+    QuizDifficulty:
+      type: string
+      enum:
+        - EASY
+        - MEDIUM
+        - HARD
+      description: |
+        クイズ難易度
+        - `EASY`: 簡単
+        - `MEDIUM`: 普通
+        - `HARD`: 難しい
+
+    QuizStatus:
+      type: string
+      enum:
+        - NOT_STARTED
+        - IN_PROGRESS
+        - COMPLETED
+      description: |
+        クイズ受験状況
+        - `NOT_STARTED`: 未受験
+        - `IN_PROGRESS`: 受験中
+        - `COMPLETED`: 完了
+
+    # ======================================
+    # ⚠️ エラー関連スキーマ
+    # ======================================
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: エラーコード
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: エラーメッセージ
+          example: "入力値にエラーがあります"
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: エラーフィールド
+                example: "name"
+              message:
+                type: string
+                description: フィールド固有のエラーメッセージ
+                example: "名前は必須項目です"
+        timestamp:
+          type: string
+          format: date-time
+          description: エラー発生時刻
+          example: "2025-08-18T10:30:00Z"
+        path:
+          type: string
+          description: エラーが発生したAPIパス
+          example: "/api/learning/spaces"
+
+  responses:
+    # ======================================
+    # 🔄 共通レスポンス定義
+    # ======================================
+    BadRequestError:
+      description: リクエストが不正です
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "VALIDATION_ERROR"
+            message: "入力値にエラーがあります"
+            details:
+              - field: "name"
+                message: "名前は必須項目です"
+            timestamp: "2025-08-18T10:30:00Z"
+            path: "/api/learning/spaces"
+
+    UnauthorizedError:
+      description: 認証が必要です
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "UNAUTHORIZED"
+            message: "認証トークンが必要です"
+            timestamp: "2025-08-18T10:30:00Z"
+            path: "/api/learning/spaces"
+
+    ForbiddenError:
+      description: アクセス権限がありません
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "FORBIDDEN"
+            message: "この操作を実行する権限がありません"
+            timestamp: "2025-08-18T10:30:00Z"
+            path: "/api/learning/spaces/1"
+
+    NotFoundError:
+      description: リソースが見つかりません
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "NOT_FOUND"
+            message: "指定された学習空間が見つかりません"
+            timestamp: "2025-08-18T10:30:00Z"
+            path: "/api/learning/spaces/999"
+
+    InternalServerError:
+      description: サーバー内部エラーが発生しました
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INTERNAL_SERVER_ERROR"
+            message: "サーバー内部でエラーが発生しました"
+            timestamp: "2025-08-18T10:30:00Z"
+            path: "/api/learning/spaces"
