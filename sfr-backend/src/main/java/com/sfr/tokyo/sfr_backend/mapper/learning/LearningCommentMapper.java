@@ -2,17 +2,15 @@ package com.sfr.tokyo.sfr_backend.mapper.learning;
 
 import com.sfr.tokyo.sfr_backend.dto.learning.LearningCommentDto;
 import com.sfr.tokyo.sfr_backend.entity.learning.LearningComment;
+import java.util.List;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
 /**
  * LearningComment エンティティと DTO のマッピング
  */
 @Mapper(componentModel = "spring")
 public interface LearningCommentMapper {
-
-    LearningCommentMapper INSTANCE = Mappers.getMapper(LearningCommentMapper.class);
 
     /**
      * エンティティからDTOに変換
@@ -57,4 +55,14 @@ public interface LearningCommentMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
     LearningComment toEntity(LearningCommentDto learningCommentDto);
+
+    /**
+     * エンティティのリストをDTOリストに変換
+     */
+    List<LearningCommentDto> toDtoList(List<LearningComment> entities);
+
+    /**
+     * DTOリストをエンティティリストに変換
+     */
+    List<LearningComment> toEntityList(List<LearningCommentDto> dtos);
 }

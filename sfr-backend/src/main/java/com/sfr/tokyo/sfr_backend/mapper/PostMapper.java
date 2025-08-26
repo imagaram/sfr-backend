@@ -3,7 +3,6 @@ package com.sfr.tokyo.sfr_backend.mapper;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.factory.Mappers;
 
 import com.sfr.tokyo.sfr_backend.dto.PostDto;
 import com.sfr.tokyo.sfr_backend.entity.PostEntity;
@@ -15,8 +14,6 @@ import java.util.List;
  */
 @Mapper(componentModel = "spring")
 public interface PostMapper {
-
-    PostMapper INSTANCE = Mappers.getMapper(PostMapper.class);
 
     /**
      * PostエンティティをDTOに変換

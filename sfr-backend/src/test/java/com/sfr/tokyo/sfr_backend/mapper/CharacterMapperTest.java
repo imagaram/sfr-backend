@@ -8,9 +8,11 @@ import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.sfr.tokyo.sfr_backend.assertions.CharacterAssertions.assertThatPair;
 
 class CharacterMapperTest {
 
@@ -36,17 +38,13 @@ class CharacterMapperTest {
         // when
         CharacterDto dto = characterMapper.toDto(character);
 
-        // then
-        assertThat(dto).isNotNull();
-        assertThat(dto.getId()).isEqualTo(character.getId());
-        assertThat(dto.getName()).isEqualTo(character.getName());
-        assertThat(dto.getProfile()).isEqualTo(character.getProfile());
-        assertThat(dto.getImageUrl()).isEqualTo(character.getImageUrl());
-        assertThat(dto.getLifespanPoints()).isEqualTo(character.getLifespanPoints());
-        assertThat(dto.getStatus()).isEqualTo(character.getStatus());
-        assertThat(dto.getUserId()).isEqualTo(userId);
-        assertThat(dto.getCreatedAt()).isEqualTo(character.getCreatedAt());
-        assertThat(dto.getUpdatedAt()).isEqualTo(character.getUpdatedAt());
+    // then
+    assertThat(dto).isNotNull();
+    assertThatPair(character, dto).hasSameCoreFields();
+    assertThat(dto.getId()).isEqualTo(character.getId());
+    assertThat(dto.getUserId()).isEqualTo(userId);
+    assertThat(dto.getCreatedAt()).isEqualTo(character.getCreatedAt());
+    assertThat(dto.getUpdatedAt()).isEqualTo(character.getUpdatedAt());
     }
 
     @Test
@@ -103,5 +101,40 @@ class CharacterMapperTest {
         assertThat(character.getImageUrl()).isEqualTo("http://example.com/updated.png");
         assertThat(character.getUser().getId()).isEqualTo(userId); // Userは変更されない
         assertThat(character.getStatus()).isEqualTo(CharacterStatus.ACTIVE); // マッピング対象外のフィールドは変更されない
+    }
+
+    @Test
+    void roundTrip_shouldPreserveCoreFields() {
+        User user = User.builder().id(UUID.randomUUID()).build();
+        CharacterLifecycle original = CharacterLifecycle.builder()
+                .id(5L)
+                .name("Round")
+                .profile("Trip")
+                .imageUrl("http://ex.com/r.png")
+                .lifespanPoints(300)
+                .status(CharacterStatus.ACTIVE)
+                .user(user)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        CharacterDto dto = characterMapper.toDto(original);
+        CharacterLifecycle mapped = characterMapper.toEntity(dto); // user / timestamps ignored
+
+    assertThatPair(mapped, dto).hasSameCoreFields();
+    }
+
+    @Test
+    void nullHandling_shouldReturnNull() {
+        assertThat(characterMapper.toDto(null)).isNull();
+        assertThat(characterMapper.toEntity(null)).isNull();
+        CharacterLifecycle entity = CharacterLifecycle.builder().name("Keep").build();
+        characterMapper.updateEntityFromDto(null, entity); // no change
+        assertThat(entity.getName()).isEqualTo("Keep");
+    }
+
+    @Test
+    void emptyList_shouldReturnEmptyList() {
+        assertThat(characterMapper.toDtoList(List.of())).isEmpty();
     }
 }

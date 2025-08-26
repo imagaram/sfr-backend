@@ -3,7 +3,6 @@ package com.sfr.tokyo.sfr_backend.mapper;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.factory.Mappers;
 
 import com.sfr.tokyo.sfr_backend.dto.CharacterDto;
 import com.sfr.tokyo.sfr_backend.entity.CharacterLifecycle;
@@ -15,8 +14,6 @@ import java.util.List;
  */
 @Mapper(componentModel = "spring")
 public interface CharacterMapper {
-
-    CharacterMapper INSTANCE = Mappers.getMapper(CharacterMapper.class);
 
     /**
      * CharacterエンティティをDTOに変換

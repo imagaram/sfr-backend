@@ -2,7 +2,6 @@ package com.sfr.tokyo.sfr_backend.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
 import com.sfr.tokyo.sfr_backend.dto.WalletEntryDTO;
 import com.sfr.tokyo.sfr_backend.entity.WalletEntry;
@@ -14,8 +13,6 @@ import java.util.List;
  */
 @Mapper(componentModel = "spring")
 public interface WalletEntryMapper {
-
-    WalletEntryMapper INSTANCE = Mappers.getMapper(WalletEntryMapper.class);
 
     /**
      * WalletEntryエンティティをDTOに変換

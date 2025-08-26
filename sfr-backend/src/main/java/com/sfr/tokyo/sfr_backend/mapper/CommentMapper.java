@@ -2,7 +2,6 @@ package com.sfr.tokyo.sfr_backend.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.mapstruct.factory.Mappers;
 
 import com.sfr.tokyo.sfr_backend.dto.CommentDto;
 import com.sfr.tokyo.sfr_backend.entity.Comment;
@@ -14,8 +13,6 @@ import java.util.List;
  */
 @Mapper(componentModel = "spring")
 public interface CommentMapper {
-
-    CommentMapper INSTANCE = Mappers.getMapper(CommentMapper.class);
 
     /**
      * CommentエンティティをDTOに変換
