@@ -24,7 +24,8 @@ public class ApiRewardDtos {
         private Double evaluation_score;
         @NotBlank
         private String reward_reason;
-        private Boolean force_issue = false;
+    @Builder.Default
+    private Boolean force_issue = false;
     }
 
     @Data

@@ -31,6 +31,23 @@
 		<lombok.version>1.18.32</lombok.version>
 	</properties>
 	<dependencies>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+		<!-- Flyway for DB migrations -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+			<version>10.22.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-mysql</artifactId>
+			<version>10.22.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -102,14 +119,7 @@
 			<artifactId>mapstruct</artifactId>
 			<version>1.5.5.Final</version>
 		</dependency>
-
-		<!-- MapStruct Processor (IDEでのアノテーション処理エラー回避用) -->
-		<dependency>
-			<groupId>org.mapstruct</groupId>
-			<artifactId>mapstruct-processor</artifactId>
-			<version>1.5.5.Final</version>
-			<scope>provided</scope>
-		</dependency>
+		<!-- mapstruct-processor は annotationProcessorPaths で指定済みのため dependency から除去 (IDEの重複検知/誤警告回避) -->
 
 		<!-- 暗号資産関連依存関係 -->
 		<!-- Jackson for JSON processing -->
@@ -340,6 +350,14 @@
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>3.1.0</version>
+				<configuration>
+					<mainClass>com.sfr.tokyo.sfr_backend.util.SchemaInspectorMain</mainClass>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

@@ -12,7 +12,7 @@
 -- =============================================================================
 
 -- ユーザー活動テーブル
-CREATE TABLE user_activities (
+CREATE TABLE IF NOT EXISTS user_activities (
     activity_id VARCHAR(64) PRIMARY KEY,  -- "{user_id}_{date}" 形式
     user_id VARCHAR(36) NOT NULL,
     activity_date DATE NOT NULL,
@@ -37,15 +37,15 @@ CREATE TABLE user_activities (
 -- =============================================================================
 
 -- ユーザー残高テーブル
-CREATE TABLE user_balances (
+CREATE TABLE IF NOT EXISTS user_balances (
     user_id VARCHAR(36) PRIMARY KEY,
     current_balance DECIMAL(20,8) NOT NULL DEFAULT 0.00000000,
     total_earned DECIMAL(20,8) NOT NULL DEFAULT 0.00000000,
     total_spent DECIMAL(20,8) NOT NULL DEFAULT 0.00000000,
     total_collected DECIMAL(20,8) NOT NULL DEFAULT 0.00000000,
     last_collection_date DATE,
-    collection_exempt BOOLEAN NOT NULL DEFAULT FALSE,
-    frozen BOOLEAN NOT NULL DEFAULT FALSE,
+    collection_exempt TINYINT(1) NOT NULL DEFAULT 0,
+    frozen TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
@@ -56,7 +56,7 @@ CREATE TABLE user_balances (
 );
 
 -- 残高変動履歴テーブル
-CREATE TABLE balance_history (
+CREATE TABLE IF NOT EXISTS balance_history (
     history_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     transaction_type VARCHAR(20) NOT NULL,  -- EARN, SPEND, COLLECT, BURN, TRANSFER
@@ -76,14 +76,14 @@ CREATE TABLE balance_history (
 -- =============================================================================
 
 -- トークンプールテーブル
-CREATE TABLE token_pools (
+CREATE TABLE IF NOT EXISTS token_pools (
     pool_date DATE PRIMARY KEY,
     total_pool_amount DECIMAL(20,8) NOT NULL DEFAULT 1000.00000000,
     distributed_amount DECIMAL(20,8) NOT NULL DEFAULT 0.00000000,
     remaining_amount DECIMAL(20,8) NOT NULL DEFAULT 1000.00000000,
     participant_count INTEGER NOT NULL DEFAULT 0,
     total_score_sum DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-    distribution_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    distribution_completed TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
@@ -96,7 +96,7 @@ CREATE TABLE token_pools (
 );
 
 -- 報酬分配テーブル
-CREATE TABLE reward_distributions (
+CREATE TABLE IF NOT EXISTS reward_distributions (
     reward_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     pool_date DATE NOT NULL,
@@ -116,7 +116,7 @@ CREATE TABLE reward_distributions (
 -- =============================================================================
 
 -- 徴収履歴テーブル
-CREATE TABLE collection_history (
+CREATE TABLE IF NOT EXISTS collection_history (
     collection_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     collection_date DATE NOT NULL,
@@ -133,12 +133,12 @@ CREATE TABLE collection_history (
 );
 
 -- AIバーン判断テーブル
-CREATE TABLE burn_decisions (
+CREATE TABLE IF NOT EXISTS burn_decisions (
     decision_id VARCHAR(36) PRIMARY KEY,
     decision_date DATE NOT NULL,
     total_circulation DECIMAL(20,8) NOT NULL,
     total_issued DECIMAL(20,8) NOT NULL,
-    market_data JSONB,
+    market_data JSON,
     ai_confidence DECIMAL(3,2) NOT NULL,
     decision_result VARCHAR(20) NOT NULL,  -- BURN, RESERVE
     burned_amount DECIMAL(20,8) NOT NULL DEFAULT 0,
@@ -160,7 +160,7 @@ CREATE TABLE burn_decisions (
 -- =============================================================================
 
 -- 評議員テーブル
-CREATE TABLE council_members (
+CREATE TABLE IF NOT EXISTS council_members (
     term_id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     start_date DATE NOT NULL,
@@ -178,7 +178,7 @@ CREATE TABLE council_members (
 );
 
 -- 提案テーブル
-CREATE TABLE governance_proposals (
+CREATE TABLE IF NOT EXISTS governance_proposals (
     proposal_id VARCHAR(36) PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
     description TEXT NOT NULL,
@@ -203,7 +203,7 @@ CREATE TABLE governance_proposals (
 );
 
 -- 投票テーブル
-CREATE TABLE governance_votes (
+CREATE TABLE IF NOT EXISTS governance_votes (
     vote_id VARCHAR(36) PRIMARY KEY,
     proposal_id VARCHAR(36) NOT NULL,
     user_id VARCHAR(36) NOT NULL,
@@ -223,7 +223,7 @@ CREATE TABLE governance_votes (
 -- =============================================================================
 
 -- 統計サマリーテーブル
-CREATE TABLE stats_summary (
+CREATE TABLE IF NOT EXISTS stats_summary (
     stats_date DATE PRIMARY KEY,
     period_type VARCHAR(10) NOT NULL,  -- DAILY, WEEKLY, MONTHLY
     total_circulation DECIMAL(20,8) NOT NULL,
@@ -244,13 +244,13 @@ CREATE TABLE stats_summary (
 -- =============================================================================
 
 -- Oracleフィードテーブル
-CREATE TABLE oracle_feeds (
+CREATE TABLE IF NOT EXISTS oracle_feeds (
     feed_id VARCHAR(36) PRIMARY KEY,
     source VARCHAR(100) NOT NULL,
     data_type VARCHAR(20) NOT NULL,  -- PRICE, VOLUME, LIQUIDITY, RATE
     value DECIMAL(20,8) NOT NULL,
     confidence DECIMAL(3,2) NOT NULL DEFAULT 1.00,
-    metadata JSONB,
+    metadata JSON,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     CONSTRAINT chk_oracle_data_type CHECK (data_type IN ('PRICE', 'VOLUME', 'LIQUIDITY', 'RATE')),
@@ -262,7 +262,7 @@ CREATE TABLE oracle_feeds (
 -- =============================================================================
 
 -- システムパラメータテーブル
-CREATE TABLE system_parameters (
+CREATE TABLE IF NOT EXISTS system_parameters (
     parameter_id VARCHAR(36) PRIMARY KEY,
     parameter_name VARCHAR(100) NOT NULL UNIQUE,
     parameter_value TEXT NOT NULL,
@@ -276,7 +276,7 @@ CREATE TABLE system_parameters (
 );
 
 -- 調整ログテーブル
-CREATE TABLE adjustment_logs (
+CREATE TABLE IF NOT EXISTS adjustment_logs (
     adjustment_id VARCHAR(36) PRIMARY KEY,
     parameter_name VARCHAR(100) NOT NULL,
     old_value TEXT,
@@ -294,38 +294,39 @@ CREATE TABLE adjustment_logs (
 -- =============================================================================
 
 -- パフォーマンス向上のためのインデックス
-CREATE INDEX idx_user_activities_user_date ON user_activities(user_id, activity_date);
-CREATE INDEX idx_user_activities_date ON user_activities(activity_date);
+-- 既存テーブルには既にインデックスが存在するため、新規テーブルのみに適用
+-- CREATE INDEX idx_user_activities_user_date ON user_activities(user_id, activity_date);
+-- CREATE INDEX idx_user_activities_date ON user_activities(activity_date);
 
-CREATE INDEX idx_balance_history_user_id ON balance_history(user_id);
-CREATE INDEX idx_balance_history_created_at ON balance_history(created_at);
-CREATE INDEX idx_balance_history_type ON balance_history(transaction_type);
+-- CREATE INDEX idx_balance_history_user_id ON balance_history(user_id);
+-- CREATE INDEX idx_balance_history_created_at ON balance_history(created_at);
+-- CREATE INDEX idx_balance_history_type ON balance_history(transaction_type);
 
-CREATE INDEX idx_reward_distributions_user_id ON reward_distributions(user_id);
-CREATE INDEX idx_reward_distributions_pool_date ON reward_distributions(pool_date);
+-- CREATE INDEX idx_reward_distributions_user_id ON reward_distributions(user_id);
+-- CREATE INDEX idx_reward_distributions_pool_date ON reward_distributions(pool_date);
 
-CREATE INDEX idx_collection_history_user_id ON collection_history(user_id);
-CREATE INDEX idx_collection_history_date ON collection_history(collection_date);
+-- CREATE INDEX idx_collection_history_user_id ON collection_history(user_id);
+-- CREATE INDEX idx_collection_history_date ON collection_history(collection_date);
 
-CREATE INDEX idx_council_members_user_id ON council_members(user_id);
-CREATE INDEX idx_council_members_status ON council_members(status);
+-- CREATE INDEX idx_council_members_user_id ON council_members(user_id);
+-- CREATE INDEX idx_council_members_status ON council_members(status);
 
-CREATE INDEX idx_governance_proposals_status ON governance_proposals(status);
-CREATE INDEX idx_governance_proposals_created_by ON governance_proposals(created_by);
+-- CREATE INDEX idx_governance_proposals_status ON governance_proposals(status);
+-- CREATE INDEX idx_governance_proposals_created_by ON governance_proposals(created_by);
 
-CREATE INDEX idx_governance_votes_proposal_id ON governance_votes(proposal_id);
-CREATE INDEX idx_governance_votes_user_id ON governance_votes(user_id);
+-- CREATE INDEX idx_governance_votes_proposal_id ON governance_votes(proposal_id);
+-- CREATE INDEX idx_governance_votes_user_id ON governance_votes(user_id);
 
-CREATE INDEX idx_oracle_feeds_source ON oracle_feeds(source);
-CREATE INDEX idx_oracle_feeds_data_type ON oracle_feeds(data_type);
-CREATE INDEX idx_oracle_feeds_created_at ON oracle_feeds(created_at);
+-- CREATE INDEX idx_oracle_feeds_source ON oracle_feeds(source);
+-- CREATE INDEX idx_oracle_feeds_data_type ON oracle_feeds(data_type);
+-- CREATE INDEX idx_oracle_feeds_created_at ON oracle_feeds(created_at);
 
 -- =============================================================================
 -- 初期データ挿入
 -- =============================================================================
 
 -- システムパラメータの初期値
-INSERT INTO system_parameters (parameter_id, parameter_name, parameter_value, parameter_type, description) VALUES
+INSERT IGNORE INTO system_parameters (parameter_id, parameter_name, parameter_value, parameter_type, description) VALUES
 ('param_001', 'daily_token_pool', '1000.00000000', 'NUMBER', '日次トークンプール総額'),
 ('param_002', 'collection_rate', '0.001000', 'NUMBER', '基本徴収率（0.1%）'),
 ('param_003', 'collection_threshold', '100.00000000', 'NUMBER', '徴収対象最低残高'),
@@ -336,7 +337,7 @@ INSERT INTO system_parameters (parameter_id, parameter_name, parameter_value, pa
 ('param_008', 'evaluation_weight', '0.6', 'NUMBER', '評価スコア重み');
 
 -- 統計サマリーの初期データ
-INSERT INTO stats_summary (stats_date, period_type, total_circulation, total_issued, total_burned, total_holders, active_holders, daily_transactions) VALUES
+INSERT IGNORE INTO stats_summary (stats_date, period_type, total_circulation, total_issued, total_burned, total_holders, active_holders, daily_transactions) VALUES
 (CURRENT_DATE, 'DAILY', 0, 0, 0, 0, 0, 0);
 
 -- =============================================================================
@@ -344,7 +345,7 @@ INSERT INTO stats_summary (stats_date, period_type, total_circulation, total_iss
 -- =============================================================================
 
 -- ユーザー統計ビュー
-CREATE VIEW user_stats_view AS
+CREATE OR REPLACE VIEW user_stats_view AS
 SELECT 
     ub.user_id,
     ub.current_balance,
@@ -363,26 +364,13 @@ LEFT JOIN user_activities ua ON ub.user_id = ua.user_id
 GROUP BY ub.user_id, ub.current_balance, ub.total_earned, ub.total_spent, ub.total_collected;
 
 -- システム統計ビュー
-CREATE VIEW system_stats_view AS
+CREATE OR REPLACE VIEW system_stats_view AS
 SELECT 
     (SELECT SUM(current_balance) FROM user_balances) as total_circulation,
     (SELECT SUM(total_earned) FROM user_balances) as total_issued,
     (SELECT SUM(burned_amount) FROM burn_decisions) as total_burned,
     (SELECT COUNT(*) FROM user_balances WHERE current_balance > 0) as total_holders,
-    (SELECT COUNT(*) FROM user_balances WHERE updated_at >= CURRENT_DATE - INTERVAL '7 days') as active_holders,
+    (SELECT COUNT(*) FROM user_balances WHERE updated_at >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)) as active_holders,
     (SELECT COUNT(*) FROM balance_history WHERE created_at >= CURRENT_DATE) as daily_transactions;
 
-COMMENT ON TABLE user_activities IS 'ユーザーの日次活動データ';
-COMMENT ON TABLE user_balances IS 'ユーザーのSFR残高情報';
-COMMENT ON TABLE balance_history IS 'SFR残高の変動履歴';
-COMMENT ON TABLE token_pools IS '日次トークンプール管理';
-COMMENT ON TABLE reward_distributions IS '報酬分配記録';
-COMMENT ON TABLE collection_history IS 'トークン徴収履歴';
-COMMENT ON TABLE burn_decisions IS 'AIによるバーン判断記録';
-COMMENT ON TABLE council_members IS 'システム評議員情報';
-COMMENT ON TABLE governance_proposals IS 'ガバナンス提案';
-COMMENT ON TABLE governance_votes IS 'ガバナンス投票記録';
-COMMENT ON TABLE stats_summary IS 'システム統計サマリー';
-COMMENT ON TABLE oracle_feeds IS '外部Oracleデータフィード';
-COMMENT ON TABLE system_parameters IS 'システム設定パラメータ';
-COMMENT ON TABLE adjustment_logs IS 'システム調整ログ';
+-- Flyway V1.1 マイグレーション完了

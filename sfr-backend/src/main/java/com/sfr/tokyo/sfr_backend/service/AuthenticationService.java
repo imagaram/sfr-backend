@@ -3,6 +3,7 @@ package com.sfr.tokyo.sfr_backend.service;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
 
 import com.sfr.tokyo.sfr_backend.dto.AuthenticationRequest;
@@ -44,15 +45,23 @@ public class AuthenticationService {
     // ユーザー認証（ログイン）処理
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         // 認証マネージャを使用してユーザーを認証
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()
+                    )
+            );
+        } catch (AuthenticationException ex) {
+            throw new com.sfr.tokyo.sfr_backend.exception.BusinessException(
+                    com.sfr.tokyo.sfr_backend.exception.ErrorCode.AUTH_INVALID_CREDENTIALS,
+                    "Invalid credentials");
+        }
         // 認証に成功したら、データベースからユーザーを取得
         var user = repository.findByEmail(request.getEmail())
-                .orElseThrow();
+                .orElseThrow(() -> new com.sfr.tokyo.sfr_backend.exception.BusinessException(
+                        com.sfr.tokyo.sfr_backend.exception.ErrorCode.AUTH_INVALID_CREDENTIALS,
+                        "Invalid credentials"));
         // JWTトークンを生成
         var jwtToken = jwtService.generateToken(user);
         return AuthenticationResponse.builder()
