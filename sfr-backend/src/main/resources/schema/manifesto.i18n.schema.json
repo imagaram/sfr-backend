@@ -1,0 +1,433 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sfr.tokyo/schemas/manifesto.i18n.schema.json",
+  "title": "SFR.TOKYO Manifesto i18n Schema",
+  "description": "多言語対応による制度の国際化とUXの包摂性を実現するための評議員制度Manifestoスキーマ定義",
+  "type": "object",
+  "required": ["version", "sections"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Manifestoスキーマのバージョン番号（セマンティックバージョニング）",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "examples": ["1.0.0", "1.1.0", "2.0.0"]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Manifesto文書のメタデータ情報",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Manifesto作成日時（ISO 8601形式）"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Manifesto最終更新日時（ISO 8601形式）"
+        },
+        "authors": {
+          "type": "array",
+          "description": "Manifesto作成者・編集者一覧",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["SFR.TOKYO評議員会", "創設者委員会"]]
+        },
+        "supportedLanguages": {
+          "type": "array",
+          "description": "対応言語コード一覧（ISO 639-1準拠）",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z]{2}$"
+          },
+          "minItems": 1,
+          "examples": [["ja", "en"]]
+        },
+        "phase": {
+          "type": "string",
+          "description": "公開フェーズ（Phase 3: 国内テスト後の展開予定）",
+          "enum": ["development", "testing", "production"],
+          "default": "testing"
+        }
+      },
+      "required": ["createdAt", "updatedAt", "supportedLanguages", "phase"]
+    },
+    "sections": {
+      "type": "array",
+      "description": "Manifestoセクション一覧（制度理念・原則・報酬設計等）",
+      "minItems": 3,
+      "items": {
+        "$ref": "#/definitions/ManifestoSection"
+      }
+    }
+  },
+  "definitions": {
+    "ManifestoSection": {
+      "type": "object",
+      "description": "Manifestoの個別セクション定義",
+      "required": ["id", "title", "content"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "セクション識別子（一意）",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "examples": ["principles", "rewards", "governance", "participation", "transparency"]
+        },
+        "order": {
+          "type": "integer",
+          "description": "セクション表示順序",
+          "minimum": 1
+        },
+        "category": {
+          "type": "string",
+          "description": "セクションカテゴリ",
+          "enum": ["foundation", "governance", "economics", "participation", "technical"],
+          "examples": ["foundation", "governance", "economics"]
+        },
+        "title": {
+          "$ref": "#/definitions/LocalizedText",
+          "description": "セクションタイトル（多言語対応）"
+        },
+        "content": {
+          "$ref": "#/definitions/LocalizedContent",
+          "description": "セクション内容（多言語対応・構造化）"
+        },
+        "tags": {
+          "type": "array",
+          "description": "セクション分類タグ",
+          "items": {
+            "type": "string"
+          },
+          "examples": [["core", "fundamental"], ["reward", "economics"], ["decision-making", "democratic"]]
+        },
+        "lastModified": {
+          "type": "string",
+          "format": "date-time",
+          "description": "セクション最終更新日時"
+        }
+      }
+    },
+    "LocalizedText": {
+      "type": "object",
+      "description": "多言語対応テキスト（短文・タイトル用）",
+      "required": ["ja", "en"],
+      "properties": {
+        "ja": {
+          "type": "string",
+          "description": "日本語テキスト",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "en": {
+          "type": "string",
+          "description": "英語テキスト",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "additionalProperties": {
+        "type": "string",
+        "description": "将来的な言語拡張用（zh, ko, fr等）",
+        "minLength": 1,
+        "maxLength": 200
+      }
+    },
+    "LocalizedContent": {
+      "type": "object",
+      "description": "多言語対応コンテンツ（長文・構造化内容用）",
+      "required": ["ja", "en"],
+      "properties": {
+        "ja": {
+          "$ref": "#/definitions/ContentStructure",
+          "description": "日本語コンテンツ"
+        },
+        "en": {
+          "$ref": "#/definitions/ContentStructure",
+          "description": "英語コンテンツ"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/ContentStructure",
+        "description": "将来的な言語拡張用コンテンツ"
+      }
+    },
+    "ContentStructure": {
+      "type": "object",
+      "description": "構造化コンテンツ定義",
+      "required": ["summary", "details"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "セクション要約（150文字以内）",
+          "maxLength": 150
+        },
+        "details": {
+          "type": "array",
+          "description": "詳細内容（段落・箇条書き・図表等）",
+          "items": {
+            "$ref": "#/definitions/ContentBlock"
+          },
+          "minItems": 1
+        },
+        "references": {
+          "type": "array",
+          "description": "関連文書・法的根拠等の参照",
+          "items": {
+            "$ref": "#/definitions/Reference"
+          }
+        }
+      }
+    },
+    "ContentBlock": {
+      "type": "object",
+      "description": "コンテンツブロック（段落・リスト・表等）",
+      "required": ["type", "content"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "コンテンツブロックタイプ",
+          "enum": ["paragraph", "list", "table", "quote", "formula", "diagram"],
+          "examples": ["paragraph", "list", "table"]
+        },
+        "content": {
+          "type": "string",
+          "description": "ブロック内容（Markdown記法対応）",
+          "minLength": 1
+        },
+        "metadata": {
+          "type": "object",
+          "description": "ブロック追加情報",
+          "properties": {
+            "importance": {
+              "type": "string",
+              "enum": ["high", "medium", "low"],
+              "default": "medium"
+            },
+            "category": {
+              "type": "string",
+              "examples": ["principle", "rule", "example", "note"]
+            }
+          }
+        }
+      }
+    },
+    "Reference": {
+      "type": "object",
+      "description": "参照文書・リンク情報",
+      "required": ["title", "type"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "参照文書タイトル"
+        },
+        "type": {
+          "type": "string",
+          "description": "参照タイプ",
+          "enum": ["law", "regulation", "academic", "internal", "external"],
+          "examples": ["law", "internal", "academic"]
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "参照URL（外部リンク）"
+        },
+        "section": {
+          "type": "string",
+          "description": "参照対象セクション・条項"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "参照文書日付"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "version": "1.0.0",
+      "metadata": {
+        "createdAt": "2025-09-02T00:00:00Z",
+        "updatedAt": "2025-09-02T00:00:00Z",
+        "authors": ["SFR.TOKYO評議員会", "創設者委員会"],
+        "supportedLanguages": ["ja", "en"],
+        "phase": "testing"
+      },
+      "sections": [
+        {
+          "id": "principles",
+          "order": 1,
+          "category": "foundation",
+          "title": {
+            "ja": "基本原則",
+            "en": "Fundamental Principles"
+          },
+          "content": {
+            "ja": {
+              "summary": "SFR.TOKYO評議員制度の基本的な価値観と運営原則を定義します。",
+              "details": [
+                {
+                  "type": "paragraph",
+                  "content": "SFR.TOKYOは創作活動支援SNSプラットフォームとして、以下の基本原則に基づいて運営されます。",
+                  "metadata": {
+                    "importance": "high",
+                    "category": "principle"
+                  }
+                },
+                {
+                  "type": "list",
+                  "content": "- **透明性**: すべての意思決定プロセスを公開\n- **民主性**: 市民参加による意思決定\n- **持続可能性**: 長期的な発展を重視\n- **包摂性**: 多様な価値観を尊重",
+                  "metadata": {
+                    "importance": "high",
+                    "category": "principle"
+                  }
+                }
+              ]
+            },
+            "en": {
+              "summary": "Defines the fundamental values and operational principles of the SFR.TOKYO council system.",
+              "details": [
+                {
+                  "type": "paragraph",
+                  "content": "SFR.TOKYO operates as a creative activity support SNS platform based on the following fundamental principles.",
+                  "metadata": {
+                    "importance": "high",
+                    "category": "principle"
+                  }
+                },
+                {
+                  "type": "list",
+                  "content": "- **Transparency**: Open decision-making processes\n- **Democracy**: Citizen participation in decisions\n- **Sustainability**: Focus on long-term development\n- **Inclusivity**: Respect for diverse values",
+                  "metadata": {
+                    "importance": "high",
+                    "category": "principle"
+                  }
+                }
+              ]
+            }
+          },
+          "tags": ["core", "fundamental", "values"],
+          "lastModified": "2025-09-02T00:00:00Z"
+        },
+        {
+          "id": "rewards",
+          "order": 2,
+          "category": "economics",
+          "title": {
+            "ja": "報酬設計",
+            "en": "Reward System Design"
+          },
+          "content": {
+            "ja": {
+              "summary": "SFR暗号資産を用いた創作活動支援とガバナンス参加の報酬制度を説明します。",
+              "details": [
+                {
+                  "type": "paragraph",
+                  "content": "SFR.TOKYOの報酬制度は、創作活動の質的向上と民主的ガバナンスへの参加を促進することを目的としています。",
+                  "metadata": {
+                    "importance": "high",
+                    "category": "rule"
+                  }
+                },
+                {
+                  "type": "table",
+                  "content": "| 活動種別 | 基本報酬 | 品質加算 | 参加加算 |\n|---------|---------|----------|----------|\n| 創作投稿 | 10 SFR | +5-20 SFR | - |\n| 評議参加 | 50 SFR | - | +10 SFR |\n| 品質評価 | 5 SFR | +2-10 SFR | - |",
+                  "metadata": {
+                    "importance": "medium",
+                    "category": "rule"
+                  }
+                }
+              ]
+            },
+            "en": {
+              "summary": "Explains the reward system for creative activities and governance participation using SFR cryptocurrency.",
+              "details": [
+                {
+                  "type": "paragraph",
+                  "content": "The SFR.TOKYO reward system aims to promote qualitative improvement of creative activities and participation in democratic governance.",
+                  "metadata": {
+                    "importance": "high",
+                    "category": "rule"
+                  }
+                },
+                {
+                  "type": "table",
+                  "content": "| Activity Type | Base Reward | Quality Bonus | Participation Bonus |\n|---------------|-------------|---------------|---------------------|\n| Creative Post | 10 SFR | +5-20 SFR | - |\n| Council Participation | 50 SFR | - | +10 SFR |\n| Quality Assessment | 5 SFR | +2-10 SFR | - |",
+                  "metadata": {
+                    "importance": "medium",
+                    "category": "rule"
+                  }
+                }
+              ]
+            }
+          },
+          "tags": ["economics", "reward", "incentive"],
+          "lastModified": "2025-09-02T00:00:00Z"
+        },
+        {
+          "id": "governance",
+          "order": 3,
+          "category": "governance",
+          "title": {
+            "ja": "ガバナンス制度",
+            "en": "Governance System"
+          },
+          "content": {
+            "ja": {
+              "summary": "評議員選出、意思決定プロセス、市民参加の仕組みを定義します。",
+              "details": [
+                {
+                  "type": "paragraph",
+                  "content": "SFR.TOKYOのガバナンス制度は、選挙による評議員選出と市民参加による意思決定を基盤としています。",
+                  "metadata": {
+                    "importance": "high",
+                    "category": "principle"
+                  }
+                },
+                {
+                  "type": "list",
+                  "content": "- **評議員選挙**: 年1回、市民投票による15名選出\n- **提案制度**: 市民・評議員による制度改善提案\n- **投票制度**: 重要事項の民主的決定\n- **透明性**: 全プロセスのブロックチェーン記録",
+                  "metadata": {
+                    "importance": "high",
+                    "category": "rule"
+                  }
+                }
+              ]
+            },
+            "en": {
+              "summary": "Defines council member selection, decision-making processes, and citizen participation mechanisms.",
+              "details": [
+                {
+                  "type": "paragraph",
+                  "content": "The SFR.TOKYO governance system is based on council member selection through elections and decision-making through citizen participation.",
+                  "metadata": {
+                    "importance": "high",
+                    "category": "principle"
+                  }
+                },
+                {
+                  "type": "list",
+                  "content": "- **Council Elections**: Annual selection of 15 members by citizen vote\n- **Proposal System**: System improvement proposals by citizens and council members\n- **Voting System**: Democratic decision-making on important matters\n- **Transparency**: Blockchain recording of all processes",
+                  "metadata": {
+                    "importance": "high",
+                    "category": "rule"
+                  }
+                }
+              ]
+            }
+          },
+          "tags": ["governance", "democracy", "decision-making"],
+          "lastModified": "2025-09-02T00:00:00Z"
+        }
+      ]
+    }
+  ],
+  "_comments": {
+    "phase3_notice": "このスキーマは公開フェーズ3の扱いとし、国内テスト後に展開予定です。外部依存や翻訳ライブラリとの統合はまだ不要です。",
+    "future_enhancements": "将来的な機能拡張: 自動翻訳API統合、バージョン管理システム、外部DAOとの連携、リアルタイム編集機能",
+    "technical_notes": "JSONスキーマはDraft-07準拠。プロダクション環境では追加の検証とセキュリティ対策が必要です。",
+    "internationalization": "現在はja/en対応。将来的にzh（中国語）、ko（韓国語）、fr（フランス語）等の追加を予定。",
+    "integration_planning": "Spring Boot バックエンドでの実装時は、JPA Entity、Service、Controller層での対応が必要です。"
+  }
+}

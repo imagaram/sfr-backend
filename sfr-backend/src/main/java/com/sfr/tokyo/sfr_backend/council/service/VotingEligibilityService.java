@@ -1,6 +1,7 @@
 package com.sfr.tokyo.sfr_backend.council.service;
 
 import org.springframework.stereotype.Service;
+import com.sfr.tokyo.sfr_backend.service.system.ParameterService;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -11,6 +12,12 @@ import java.util.UUID;
  */
 @Service
 public class VotingEligibilityService {
+
+    private final ParameterService parameterService;
+
+    public VotingEligibilityService(ParameterService parameterService) {
+        this.parameterService = parameterService;
+    }
 
     // 将来: CryptoBalanceService / ActivityScoreService などに差し替え
     protected BigDecimal fetchSfrBalance(UUID userId) {
@@ -26,8 +33,11 @@ public class VotingEligibilityService {
     public EligibilityResult evaluate(UUID userId) {
         BigDecimal balance = fetchSfrBalance(userId);
         int activity = fetchActivityScore(userId);
-        boolean balanceOk = balance.compareTo(BigDecimal.ONE) >= 0; // >=1 SFR
-        boolean activityOk = activity >= 50; // >=50
+    BigDecimal minBalance = parameterService.getDecimal(ParameterService.MIN_VOTE_BALANCE);
+    int minActivityDays = parameterService.getInt(ParameterService.MIN_VOTE_ACTIVITY_DAYS);
+    boolean balanceOk = balance.compareTo(minBalance) >= 0;
+    // NOTE: 現在 activityScore は「直近活動日数」と等価ではないスタブ。将来的に別サービスから取得し日数比較へ変更予定。
+    boolean activityOk = activity >= minActivityDays; 
         return new EligibilityResult(balanceOk, activityOk, balance, activity);
     }
 
