@@ -19,7 +19,18 @@ import java.util.Map;
  * 多言語対応による制度の国際化とUXの包摂性を実現
  * 公開フェーズ3: 国内テスト後の展開予定
  */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ManifestoI18nDto {
+
+    /**
+     * Manifestoドキュメント
+     */
+    @Schema(description = "Manifestoドキュメント")
+    @JsonProperty("document")
+    private ManifestoDocumentDto document;
 
     /**
      * Manifestoドキュメント全体DTO

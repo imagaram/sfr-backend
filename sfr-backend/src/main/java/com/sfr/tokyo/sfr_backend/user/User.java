@@ -41,6 +41,12 @@ public class User implements UserDetails {
     @Column(name = "my_number_verified")
     private boolean myNumberVerified;
 
+    @Column(name = "my_number_subject")
+    private String myNumberSubject; // デジタル庁発行の識別子
+
+    @Column(name = "last_my_number_auth_at")
+    private java.time.Instant lastMyNumberAuthAt; // 最後のマイナンバー認証日時
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of();

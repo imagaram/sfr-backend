@@ -48,21 +48,21 @@ public class ManifestoI18nService {
      * @return Manifestoドキュメント
      */
     public ManifestoI18nDto getCurrentManifestoForExternal(String languageCode) {
-        Optional<ManifestoDocument> activeDocument = manifestoDocumentRepository.findByIsActiveTrueOrderByVersionDesc()
-                .stream().findFirst();
+        List<ManifestoDocument> activeDocuments = manifestoDocumentRepository.findByIsActiveTrueOrderByVersionDesc();
         
-        if (activeDocument.isEmpty()) {
+        if (activeDocuments.isEmpty()) {
             return null;
         }
         
-        Optional<ManifestoI18nDto.ManifestoDocumentDto> documentDto = convertToDto(activeDocument.get(), languageCode);
-        if (documentDto.isEmpty()) {
+        ManifestoDocument activeDocument = activeDocuments.get(0);
+        ManifestoI18nDto.ManifestoDocumentDto documentDto = convertToDto(activeDocument, languageCode);
+        if (documentDto == null) {
             return null;
         }
         
         // 外部API用のラッパー作成
         return ManifestoI18nDto.builder()
-                .document(documentDto.get())
+                .document(documentDto)
                 .build();
     }
 
