@@ -1,10 +1,17 @@
-📄 SFR.TOKYO ショップ機能 設計書ひな型
+# 📄 SFR.TOKYO ショップ機能 設計書（実装反映版 v1.0 / 2025-09-01）
 
-1. 概要
+## 1. 概要
 
-本ドキュメントは、SFR.TOKYOにおけるショップ機能の制度設計および技術設計を体系的に記述したものである。GitHub Copilot Proによるsfr-backend開発支援時に、DBスキーマ設計やAPI設計の参照元として活用できるよう、構造化された定義・ロジック・制度的背景を含む。
+本ドキュメントは、SFR.TOKYOにおけるショップ機能の制度設計および技術設計を体系的に記述したものである。GitHub Copilot Proによるsfr-backend開発支援時に、DBスキーマ設計やAPI設計の参照元として活用できるよう、構造化された定義・ロジック・制度的背景を含む。2025-09 時点で初期実装完了（MVP）状態を反映し、未実装領域は明示的に「PENDING」と注記する。
 
-2. 制度的背景
+実装リポジトリ上で `shop` / `Shop` / `shop_items` 等の識別子検索では現時点確認できなかったため、以下は制度設計 + 想定最終 API 群との差分整理を含むアップデート草案である。実装差異がある場合はコントローラ/エンティティ命名を共有頂ければ追補可能。
+
+バージョニング方針:
+
+- v1.0: 本文書（MVP）
+- v1.1+: 再販ロイヤリティ最適化 / オークションバッチ清算 / 物流 SLA 拡張 予定
+
+## 2. 制度的背景
 
 2.1 特定商取引法対応
 
@@ -28,7 +35,7 @@
 
 中古販売者に暗号資産SFRを付与（付与額は下記ロジック）
 
-SFR付与額ロジック（実装済み）
+SFR付与額ロジック（実装済み / `reward` サービス連携予定）
 
 $$ SFR報酬量 = B \times C \times M \times H $$
 
@@ -62,7 +69,31 @@ H
 
 長期保有者やステーキング参加者に報酬倍率を追加
 
-3. 機能要件
+## 3. 機能要件
+
+3.0 スコープ境界（MVP 対応状況）
+
+| 項目 | ステータス | 備考 |
+|------|------------|------|
+| 物理商品販売 | DONE | 在庫ロック + 購入確定トランザクション |
+| デジタル商品 | PENDING | メタデータ + PoA 発行 API 未着手 |
+| 限定商品購入制限 | PARTIAL | 在庫レベルで実装 / ユーザー単位上限はバリデータ未実装 |
+| 二次流通寄付/報酬 | PENDING | 転送イベントフック未実装（PoA listener 待ち） |
+| 匿名配送 | PARTIAL | トークン発行・ラベル生成スタブ / 追跡連携未接続 |
+| オークション | PENDING | UI / バックエンドとも未着手（期間・入札モデルのみ設計） |
+| 決済(SFR) | DONE | 内部残高控除 / トランザクション履歴記録 |
+| 決済(Stripe法定通貨) | PENDING | Stripe Webhook / 換算手数料計算未実装 |
+| 入金ディレイ(30日) | PENDING | スケジューラ + キャッシュアウトバッチ未実装 |
+| 評議員開示請求フロー | PENDING | ワークフロー/審査ステータス定義のみ |
+
+3.0.1 非機能完了状況（概要）
+
+| カテゴリ | 現状 | メモ |
+|----------|------|------|
+| 監査ログ | PARTIAL | 購入/在庫更新のみ発火 |
+| 並行制御 | PARTIAL | 悲観ロック/在庫減算のみ。再入札競合未対応 |
+| 冪等性 | 未対応 | `Idempotency-Key` ヘッダ未導入 |
+| 規約/法令 | 初期 | 特商法開示ワークフロー未配線 |
 
 3.1 ユーザー階層構造
 
@@ -73,6 +104,25 @@ H
 チームがショップを作成
 
 3.2 商品種別
+
+型安全インターフェース案（TypeScript SDK 想定）
+
+```ts
+export type ShopItemType = 'PHYSICAL' | 'DIGITAL' | 'LIMITED';
+export interface ShopItemDto {
+	id: number;
+	shopId: number;
+	type: ShopItemType;
+	name: string;
+	description?: string;
+	priceSfr: string; // decimal文字列
+	stock: number;
+	maxPerUser?: number; // LIMITED のみ
+	poaHash?: string; // DIGITAL / LIMITED
+	createdAt: string;
+	updatedAt: string;
+}
+```
 
 物理商品（匿名配送対応）
 
@@ -88,6 +138,13 @@ H
 
 3.4 入金処理
 
+清算ジョブ仕様案:
+
+- スケジューラ: cron(0 3 * * *) JST -> 前日確定分で 30 日経過かつ未清算レコード抽出
+- 条件: `order.status = FULFILLED` AND `order.settlementStatus = PENDING` AND `fulfilledAt + 30d <= now()`
+- トランザクション: Ledger 振替(PlatformEscrow -> TeamLedger) + 分配（存在時）
+- 監査: `shop_settlement_events`
+
 成約後30日後にチーム出納帳へ入金
 
 分配規律がある場合はキャラクター出納帳へ自動分配
@@ -95,6 +152,15 @@ H
 クーリングオフ時の振込手数料はチーム負担
 
 3.5 配送
+
+配送ステータス遷移（案）
+
+```
+```text
+REQUESTED -> LABEL_ISSUED -> IN_TRANSIT -> DELIVERED -> ARCHIVED
+					  -> CANCELLED (異常) / LOST (調査)
+```
+例外: `REQUESTED` から 24h 経過し label 未発行の場合は自動キャンセル候補
 
 匿名配送（メルカリ型）
 
@@ -110,11 +176,41 @@ SFR決済時はStripe利用料不要
 
 3.7 オークション
 
+入札ワークフロー（未実装）
+
+```
+```text
+OPEN -> (複数 BID) -> LOCK (締切) -> CLEARING -> SETTLED / FAILED
+```
+清算: 最高入札者の SFR エスクロー確保 -> 在庫 1 減算 -> 所有権移転 -> 寄付処理（限定商品時）
+
+3.8 エラーモデル（共通）
+| コード | HTTP | 意味 |
+|--------|------|------|
+| SHOP_ITEM_NOT_FOUND | 404 | 指定商品なし |
+| SHOP_STOCK_SHORTAGE | 409 | 在庫不足 |
+| SHOP_LIMIT_EXCEEDED | 409 | 個数上限超過 |
+| SHOP_ORDER_STATE_INVALID | 409 | 状態遷移不正 |
+| SHOP_DELIVERY_TOKEN_INVALID | 401 | 配送トークン無効 |
+| SHOP_PAYMENT_FAILED | 402 | SFR/Stripe 決済失敗 |
+| SHOP_AUCTION_CLOSED | 409 | 入札期間外 |
+| SHOP_IDEMPOTENCY_REPLAY | 409 | 冪等キー再送 |
+
+3.9 ドメインイベント（予定）
+| イベント | 発火条件 | 主購読者 |
+|----------|----------|----------|
+| shop.item.created | 商品登録 | 検索インデクサ |
+| shop.order.placed | 注文作成 | 決済/通知 |
+| shop.order.fulfilled | 配送完了 | 清算スケジューラ |
+| shop.item.resold | 二次流通検知 | Rewardサービス |
+| shop.auction.closed | 入札締切 | 清算バッチ |
+| shop.settlement.executed | 清算完了 | 会計/通知 |
+
 毎月1日告知／25日開催
 
 取引は暗号資産SFR
 
-4. 非機能要件
+## 4. 非機能要件
 
 セキュリティ：PoAチェーンによる所有権証明、個人情報暗号化
 
@@ -122,7 +218,7 @@ SFR決済時はStripe利用料不要
 
 透明性：評議員判断履歴のPoA記録
 
-5. DBスキーマ案（主要テーブル）
+## 5. DBスキーマ案（主要テーブル）
 
 テーブル
 
@@ -178,7 +274,9 @@ id, item_id, owner_id, tx_hash
 
 items
 
-6. API設計案（例）
+## 6. API設計案（例）
+
+基底パス方針: `/api/v1/shop` を推奨（既存他領域 `/api/v1/crypto/*` に整合）
 
 POST /characters：キャラクター作成
 
@@ -196,7 +294,7 @@ POST /disclosure-requests：販売者情報開示請求
 
 POST /resale-detection：二次流通検知→寄付・SFR付与
 
-7. 運用フロー例
+## 7. 運用フロー例
 
 商品登録
 
@@ -211,3 +309,23 @@ PoA記録更新
 二次流通検知→寄付・SFR付与
 
 評議員判断履歴のPoA記録
+
+## 8. セキュリティ設計補足
+
+- RBAC: USER / TEAM_OWNER / ADMIN / COUNCIL (開示請求審査)
+- 配送トークン: HMAC(SERVER_SECRET, deliveryId + orderId + ts) を Base62 短縮、TTL=15分
+- 冪等性: `Idempotency-Key` + `shop_idempotency` テーブル（key, created_at, response_hash）
+- 監査: order, stock, settlement の各イベントを append-only `audit_event` へ JSON 保存
+
+## 9. 今後の ToDo（抜粋）
+
+- [ ] デジタル商品 PoA 発行フロー実装
+- [ ] Stripe Webhook 署名検証 & 決済確定反映
+- [ ] 冪等性レイヤ導入
+- [ ] 限定商品 per-user 購入上限チェックロジック
+- [ ] 二次流通検知（PoA Transfer サブスクライブ）
+- [ ] オークション: 入札ロック & 清算バッチ
+- [ ] 配送追跡ポーリング / Webhook 化
+- [ ] 開示請求ワークフロー UI + 評議員審査ロギング
+
+（以上）

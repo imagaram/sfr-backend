@@ -1,11 +1,9 @@
 package com.sfr.tokyo.sfr_backend.external.integration;
 
 import com.sfr.tokyo.sfr_backend.external.adapter.SfrManifestoAdapter;
-import com.sfr.tokyo.sfr_backend.external.client.SfrExternalApiClient;
 import com.sfr.tokyo.sfr_backend.external.contract.ApiResponse;
 import com.sfr.tokyo.sfr_backend.external.controller.ManifestoExternalControllerSimple;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.Order;
@@ -53,12 +51,7 @@ public class SdkPerformanceTest {
     @Autowired
     private SfrManifestoAdapter manifestoAdapter;
 
-    private String baseUrl;
-
-    @BeforeEach
-    void setUp() {
-        baseUrl = "http://localhost:" + port;
-    }
+    // Removed unused baseUrl field and setup
 
     @Test
     @Order(1)
@@ -150,7 +143,7 @@ public class SdkPerformanceTest {
         // When: アダプターメソッドを繰り返し実行
         stopWatch.start();
         
-        for (int i = 0; i < iterations; i++) {
+    for (int i = 0; i < iterations; i++) {
             assertDoesNotThrow(() -> {
                 manifestoAdapter.getAvailableLanguages();
                 manifestoAdapter.getAvailableVersions();
@@ -274,12 +267,9 @@ public class SdkPerformanceTest {
         // When: エラーケースを含むリクエストを実行
         stopWatch.start();
         
-        for (int i = 0; i < iterations; i++) {
-            // 無効な言語コードでリクエスト（エラーレスポンスを期待）
-            assertDoesNotThrow(() -> {
-                manifestoController.getCurrentManifesto("invalid_lang_" + i);
-            });
-        }
+        IntStream.range(0, iterations).forEach(idx -> {
+            assertDoesNotThrow(() -> manifestoController.getCurrentManifesto("invalid_lang_" + idx));
+        });
         
         stopWatch.stop();
         

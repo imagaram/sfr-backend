@@ -1,13 +1,54 @@
 /**
  * SFR Learning API SDK - Type Definitions
  * @author SFR.TOKYO Development Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 // ======================================
-// 🎓 学習空間関連タイプ
+// 🎓 スペース関連タイプ（新）
 // ======================================
 
+export interface Space {
+    id: number;
+    name: string;
+    description?: string;
+    mode: SpaceMode;
+    status: SpaceStatus;
+    isPublic: boolean;
+    maxMembers: number;
+    memberCount: number;
+    ownerId: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface SpaceCreateRequest {
+    name: string;
+    description?: string;
+    mode: SpaceMode;
+    isPublic?: boolean;
+    maxMembers?: number;
+    settings?: SpaceSettings;
+}
+
+export interface SpaceSettings {
+    allowComments?: boolean;
+    allowFileUpload?: boolean;
+    moderationRequired?: boolean;
+    autoProgressTracking?: boolean;
+    notificationSettings?: NotificationSettings;
+}
+
+export type SpaceMode = 'SCHOOL' | 'SALON' | 'FANCLUB';
+export type SpaceStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING';
+
+// ======================================
+// 🎓 学習空間関連タイプ（非推奨）
+// ======================================
+
+/**
+ * @deprecated Space インターフェースを使用してください
+ */
 export interface LearningSpace {
     id: number;
     name: string;
@@ -22,6 +63,9 @@ export interface LearningSpace {
     updatedAt: string;
 }
 
+/**
+ * @deprecated SpaceCreateRequest インターフェースを使用してください
+ */
 export interface LearningSpaceCreateRequest {
     name: string;
     description?: string;
@@ -31,6 +75,9 @@ export interface LearningSpaceCreateRequest {
     settings?: LearningSpaceSettings;
 }
 
+/**
+ * @deprecated SpaceSettings インターフェースを使用してください
+ */
 export interface LearningSpaceSettings {
     allowComments?: boolean;
     allowFileUpload?: boolean;
@@ -243,8 +290,14 @@ export interface ErrorDetail {
 // 📊 列挙型
 // ======================================
 
+/**
+ * @deprecated SpaceMode タイプを使用してください
+ */
 export type LearningMode = 'SCHOOL' | 'SALON' | 'FANCLUB';
 
+/**
+ * @deprecated SpaceStatus タイプを使用してください
+ */
 export type LearningSpaceStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
 
 export type LearningSpaceRole = 'OWNER' | 'INSTRUCTOR' | 'MEMBER' | 'GUEST';

@@ -101,9 +101,9 @@ class CouncilCoreServicesTest {
         var c1 = candidateService.registerCandidate(electionId, alice.getId());
         electionService.advancePhase(electionId, ElectionPhase.VOTING);
         voteService.castVote(electionId, c1.getId(), bob.getId());
-        assertThatThrownBy(() -> voteService.castVote(electionId, c1.getId(), bob.getId()))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Already voted");
+    assertThatThrownBy(() -> voteService.castVote(electionId, c1.getId(), bob.getId()))
+        .isInstanceOf(com.sfr.tokyo.sfr_backend.exception.BusinessException.class)
+        .hasMessageContaining("Already voted");
     }
 
     @Test
@@ -115,7 +115,7 @@ class CouncilCoreServicesTest {
         var c1 = candidateService.registerCandidate(electionId, alice.getId());
         // move to voting
         electionService.advancePhase(electionId, ElectionPhase.VOTING);
-        assertThatThrownBy(() -> manifestoService.upsert(c1.getId(), ManifestoDto.builder().title("t").build()))
-                .isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> manifestoService.upsert(c1.getId(), ManifestoDto.builder().title("t").build()))
+        .isInstanceOf(com.sfr.tokyo.sfr_backend.exception.BusinessException.class);
     }
 }

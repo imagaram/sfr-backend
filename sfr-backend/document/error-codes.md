@@ -41,6 +41,9 @@
 | BUSINESS_RULE_VIOLATION | 400 | Business(Generic) | Business rule violation | 個別コード化未対応のルール違反 | 問題内容表示 |
 | VOTER_INSUFFICIENT_BALANCE | 400 | Business | Insufficient SFR balance | 投票最低残高条件未達 | 残高不足警告 / 残高取得導線 |
 | VOTER_INSUFFICIENT_ACTIVITY | 400 | Business | Insufficient activity score | 投票最低アクティビティスコア未達 | 活動促進ガイド表示 |
+| ALREADY_CLAIMED | 200/409 | Business | Reward already claimed | rewardId 二重 Claim | 重複要求情報表示 (idempotent) |
+| REWARD_NOT_FOUND | 404 | Resource | Reward not found | 未請求 Reward 不存在 | 再読込/再計算誘導 |
+| CLAIM_REJECTED | 400 | Business | Claim rejected | ポリシー/フラグによる拒否 | エラー理由表示 |
 | NOT_FOUND | 404 | Resource | Resource not found | 汎用リソース未存在 | 404 表示 / リダイレクト |
 | ELECTION_NOT_FOUND | 404 | Resource | Election not found | 選挙 ID 不存在 | 画面遷移/再取得 |
 | CANDIDATE_NOT_FOUND | 404 | Resource | Candidate not found | 候補者 ID 不存在 | 再検索 |

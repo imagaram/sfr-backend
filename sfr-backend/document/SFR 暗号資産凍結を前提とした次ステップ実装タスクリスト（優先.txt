@@ -1,0 +1,101 @@
+以下、SFR 暗号資産凍結を前提とした次ステップ実装タスクリスト（優先順）。
+
+【Phase 0: 即時 (Day0〜1) – フラグと安全な隔離】
+
+Feature Flag 導入: NEXT_PUBLIC_FEATURE_SFR / サーバ側も FEATURE_SFR
+UI 条件分岐: ナビ / ダッシュボード / ClaimButton を flag false 時非表示
+署名/nonce ミドルウェアを flag false でバイパス (ヘッダ送信スキップ)
+Backlog 更新: SFR 系タスクに “Deferred-Compliance” ラベル付与
+フェーズ別ステータス
+【Phase 1: 代替ポイント基盤】 5. Ledger 抽象: CryptoClient -> TokenLedgerAdapter インターフェース化
+
+状態: TODO
+根拠: TokenLedgerAdapter/PointsLedger 定義は未検出。CryptoClient は sfr-sdk に現存。
+InMemory / Simple DB 実装: PointsLedger (balance, history, claim)
+状態: TODO
+根拠: PointsLedger 未検出。
+既存 claim idempotency ロジック転用 (rewardId 一意 & duplicate 判定)
+状態: Partial
+根拠: 冪等キー生成は api-client.ts に実装（Idempotency-Key ヘッダ付与）。ただし reward claim のポイント台帳側ロジックは未実装。
+Decimal util / ApiResponse は流用 (置換不要)
+状態: Done（前提維持）
+根拠: Decimal/ApiResponse 周辺は既存利用。CryptoClient.validateSfrAmount 等の利用痕跡あり。
+Metrics 名称汎用化: reward_claim_total → claim_total
+状態: Done
+根拠: claim_total 利用テストあり（server-metrics-aggregator.test.ts）。ドキュメント移行記載（deprecation-legacy-claim-events.md、changelog.md に rename 記載）。
+【Phase 2: ガバナンス最小】 10. Voting Guards テスト追加: start/end 境界, quota, role 禁止
+
+状態: Done
+根拠: voting-guards.test.ts に境界/ロール/クォータの網羅。voting-guards.ts 直リンクは voting-rules.md に記載済み。
+Governance API モック層: /api/mock/governance/*
+状態: TODO
+根拠: app/api/mock/governance/* は未検出。
+投票 UI 最小ページ（一覧/詳細/投票ボタン/guard結果表示）
+状態: Partial
+根拠: page.tsx で guard 判定/表示あり。mock 選挙一覧・詳細ページの痕跡は未検出。
+Metrics 下準備: hook (未送信) governance_vote_attempt ダミー配置
+状態: Done
+根拠: イベント型/集計あり（metrics.ts に governance_vote_attempt、server-metrics.ts に governance_vote_attempt_total）。メトリクス UI/PromQL 参照もあり。
+【Phase 3: 報酬 “仮ポイント” モード】 14. Reward 計算 API 呼び出し部パラメータ化（ポイント固定式）
+
+状態: TODO
+根拠: ポイント用固定式/切替の実装痕跡なし。
+設定取得スタブ: GET /api/v1/rewards/config（draft 値）
+状態: TODO
+根拠: 仕様ドキュメントはあり（reward-config-draft.md、reward-calculation-parameters.md）。app/api/v1/rewards/config ルート未検出。
+設定編集 UI は後回し（エンドポイントのみダミー）
+状態: TODO
+根拠: 上記と同様。
+【Phase 4: 観測/運用】 17. Structured Log リネーム: “sfr_tx_type” → “token_tx_type”
+
+状態: TODO
+根拠: 該当キー名の出現なし。
+Metrics exporter: SFR 依存ラベル排除 / ポイント時は network 不要メトリクス抑制
+状態: TODO
+根拠: 明示的な抑制/切替ロジックは未検出。
+Health Check: readiness に “SFR_DISABLED” フラグ露出
+状態: Partial
+根拠: フラグ関連テスト sfr-mode.test.ts は存在。ただし /healthz での SFR_DISABLED 表示は未検出（tests/webhook/*health* は別系統）。
+【Phase 5: ドキュメント整備（並行）】 20. README フラグ説明 + 再有効化手順
+
+状態: TODO
+根拠: README に SFR フラグ運用の明示セクション未検出。
+voting-rules.md に guard 実装リンク追加
+状態: Done
+根拠: voting-rules.md に「See voting-guards.ts」記載あり。
+reward-calculation-parameters.md に “points mode limitations” 追記
+状態: TODO
+根拠: 当該節は未検出。
+変更履歴: CHANGELOG “Compliance deferral – SFR disabled via feature flag”
+状態: TODO
+根拠: changelog.md に該当トピックは未記載。
+【Phase 6: 再開容易性確保】 24. SFR 実装部分を src/experimental/sfr/ へ移設
+
+状態: TODO
+根拠: experimental/sfr ツリー未検出。
+E2E (SFR) テストを __deferred__ へ退避 + skip 注釈
+状態: TODO
+根拠: __deferred__ 未検出。
+CI ジョブ: フラグ ON 時のみ SFR テストを回す optional ワークフロー
+状態: TODO
+根拠: 該当ワークフロー未検出（既存はカバレッジ/通常テスト中心）。
+補足メモ
+メトリクス関連は「claim_total」および「governance_vote_attempt_total」が進捗良好（サーバ集計/PromQL/内部メトリクスページ含む）。
+ガバナンスの Guard とそれを使う投票ページは最小限動作。API モックと一覧/詳細ページが残タスク。
+
+【品質/リスク対策】
+27. 回帰テスト追加: flag on/off スナップショット (主要ページ 404 にならない)
+28. Migration スクリプト (後日): Points → SFR 移行マッピング (rewardId / userId / balance 差分試算) ドラフト
+29. セキュリティ確認: 不要になった署名ヘッダ送信経路が残っていないか lint ルール化
+
+【Optional (後回し可)】
+30. 投票結果 SSE / ポーリング統合 (後続 P1-3-5 下地)
+31. Metrics バッチ圧縮ロジックをガバナンス投票にも再利用 (共通 event type 化)
+
+完了判定チェック (抜粋):
+
+Flag off で SFR UI 要素 0 / エラー 0
+ポイント claim 重複テスト緑 / 旧 SFR claim テスト skip
+Voting guard テスト 100% success
+Docs & CHANGELOG 更新差分レビュー通過
+不足があれば追加指示ください。

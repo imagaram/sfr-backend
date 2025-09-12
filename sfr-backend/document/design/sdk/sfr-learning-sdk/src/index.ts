@@ -1,11 +1,12 @@
 /**
  * SFR Learning API SDK - Main Entry Point
  * @author SFR.TOKYO Development Team
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import { ApiClient } from './client/api-client';
-import { LearningSpacesClient } from './client/learning-spaces-client';
+import { SpacesClient } from './client/spaces-client'; // 新しいスペースクライアント
+import { LearningSpacesClient } from './client/learning-spaces-client'; // 旧クライアント（非推奨）
 import { LearningContentClient } from './client/learning-content-client';
 import { EvaluationsClient } from './client/evaluations-client';
 import { QuizClient } from './client/quiz-client';
@@ -19,16 +20,22 @@ export class SfrLearningSDK {
     private apiClient: ApiClient;
 
     // 各機能のクライアント
-    public readonly spaces: LearningSpacesClient;
+    public readonly spaces: SpacesClient; // 新しいスペースクライアント
     public readonly content: LearningContentClient;
     public readonly evaluations: EvaluationsClient;
     public readonly quiz: QuizClient;
+    
+    /**
+     * @deprecated LearningSpacesClient は非推奨です。spaces プロパティを使用してください。
+     */
+    public readonly learningSpaces: LearningSpacesClient; // 後方互換性のため
 
     constructor(config: SfrLearningConfig) {
         this.apiClient = new ApiClient(config);
 
         // 各機能クライアントの初期化
-        this.spaces = new LearningSpacesClient(this.apiClient);
+        this.spaces = new SpacesClient(this.apiClient); // 新しいスペースクライアント
+        this.learningSpaces = new LearningSpacesClient(this.apiClient); // 後方互換性
         this.content = new LearningContentClient(this.apiClient);
         this.evaluations = new EvaluationsClient(this.apiClient);
         this.quiz = new QuizClient(this.apiClient);
@@ -70,27 +77,27 @@ export class SfrLearningSDK {
     // ======================================
 
     /**
-     * 教材一覧取得（簡易版）
+     * スペース一覧取得（簡易版）
      * @param options 取得オプション
-     * @returns 学習空間一覧
+     * @returns スペース一覧
      */
     async getCourses(options?: {
         mode?: 'SCHOOL' | 'SALON' | 'FANCLUB';
         page?: number;
         size?: number;
     }) {
-        return this.spaces.getCourses(options);
+        return this.spaces.getSpaces(options);
     }
 
     /**
-     * 履修登録（簡易版）
-     * @param courseId 学習空間ID（数値または文字列）
+     * スペース参加（簡易版）
+     * @param courseId スペースID（数値または文字列）
      * @param characterId キャラクターID
-     * @returns 登録結果
+     * @returns 参加結果
      */
     async enrollCourse(courseId: string | number, characterId?: string) {
         const spaceId = typeof courseId === 'string' ? parseInt(courseId) : courseId;
-        return this.spaces.enrollCourse(spaceId, characterId);
+        return this.spaces.joinSpace(spaceId, characterId);
     }
 
     /**
@@ -155,13 +162,13 @@ export class SfrLearningSDK {
     }
 
     /**
-     * 学習空間の完全な情報取得
-     * @param spaceId 学習空間ID
-     * @returns 学習空間の詳細情報
+     * スペースの完全な情報取得
+     * @param spaceId スペースID
+     * @returns スペースの詳細情報
      */
     async getCompleteSpaceInfo(spaceId: number) {
         const [space, contentList, progress, quizzes] = await Promise.all([
-            this.spaces.getCourse(spaceId),
+            this.spaces.getSpace(spaceId),
             this.content.getContent(spaceId),
             this.content.getProgress(spaceId),
             this.quiz.getQuizzes(spaceId)

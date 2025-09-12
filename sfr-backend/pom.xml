@@ -29,6 +29,7 @@
 	<properties>
 		<java.version>17</java.version>
 		<lombok.version>1.18.32</lombok.version>
+		<mapstruct.version>1.5.5.Final</mapstruct.version>
 	</properties>
 	<dependencies>
 
@@ -104,6 +105,13 @@
 			<version>0.12.5</version>
 			<scope>runtime</scope>
 		</dependency>
+		
+		<!-- Auth0 JWT Library for MyNumber OAuth -->
+		<dependency>
+			<groupId>com.auth0</groupId>
+			<artifactId>java-jwt</artifactId>
+			<version>4.4.0</version>
+		</dependency>
 
 		
 		<!-- MySQL -->
@@ -113,13 +121,21 @@
 		    <version>8.0.33</version> <!-- バージョンはプロジェクトに合わせてください -->
 		</dependency>
 
-		<!-- MapStruct -->
+		<!-- MapStruct core -->
 		<dependency>
 			<groupId>org.mapstruct</groupId>
 			<artifactId>mapstruct</artifactId>
-			<version>1.5.5.Final</version>
+			<version>${mapstruct.version}</version>
 		</dependency>
 		<!-- mapstruct-processor は annotationProcessorPaths で指定済みのため dependency から除去 (IDEの重複検知/誤警告回避) -->
+
+		<!-- 決済関連依存関係 -->
+		<!-- Stripe Java SDK -->
+		<dependency>
+			<groupId>com.stripe</groupId>
+			<artifactId>stripe-java</artifactId>
+			<version>25.12.0</version>
+		</dependency>
 
 		<!-- 暗号資産関連依存関係 -->
 		<!-- Jackson for JSON processing -->
@@ -142,7 +158,7 @@
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>2.3.0</version>
+			<version>2.8.11</version>
 		</dependency>
 
 		<!-- Scheduler support -->
@@ -266,12 +282,10 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.11.0</version>
 				<configuration>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
+					<release>${java.version}</release>
 					<annotationProcessorPaths>
-						<path>
-							<groupId>org.mapstruct</groupId>
-							<artifactId>mapstruct-processor</artifactId>
-							<version>1.5.5.Final</version>
-						</path>
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
@@ -282,12 +296,18 @@
 							<artifactId>lombok-mapstruct-binding</artifactId>
 							<version>0.2.0</version>
 						</path>
+						<path>
+							<groupId>org.mapstruct</groupId>
+							<artifactId>mapstruct-processor</artifactId>
+							<version>${mapstruct.version}</version>
+						</path>
 					</annotationProcessorPaths>
 					<compilerArgs>
 						<arg>-Amapstruct.defaultComponentModel=spring</arg>
 						<arg>-Amapstruct.suppressGeneratorTimestamp=true</arg>
 						<arg>-Amapstruct.unmappedTargetPolicy=IGNORE</arg>
 						<arg>-Amapstruct.defaultInjectionStrategy=constructor</arg>
+						<arg>-Amapstruct.verbose=true</arg>
 					</compilerArgs>
 				</configuration>
 			</plugin>

@@ -62,7 +62,7 @@ CREATE TABLE user_activities (
     INDEX idx_user_activities_score (total_activity_score DESC),
     INDEX idx_user_activities_date (activity_date)
 );
-```
+```text
 
 #### 🏆 `user_evaluations`
 ユーザーの評価情報集約テーブル
@@ -256,9 +256,57 @@ CREATE TABLE burn_decisions (
 );
 ```
 
+### 3.1 リザーブ / 準備金管理（追加）
+
+#### 🛡️ `reserve_funds`
+
+価格安定・将来の再分配・緊急時流動性供給のための積立残高および入出金履歴。`destination = RESERVE` の徴収や手数料、広告収益、ショップ決済手数料等から流入。
+
+```sql
+CREATE TABLE reserve_funds (
+    reserve_id VARCHAR(64) PRIMARY KEY,              -- {date}_{seq} 等
+    entry_type ENUM('INFLOW','OUTFLOW','ADJUSTMENT') NOT NULL,
+    source_type ENUM('COLLECTION','FEE','AD','SHOP','GOVERNANCE','MANUAL') NOT NULL,
+    amount DECIMAL(18,8) NOT NULL,
+    balance_after DECIMAL(18,8) NOT NULL,
+    reference_id VARCHAR(64),                        -- fee_collections.collection_id 等
+    purpose VARCHAR(200),                            -- OUTFLOW 理由 (安定化 / 再分配 など)
+    metadata JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    INDEX idx_reserve_funds_created (created_at DESC),
+    INDEX idx_reserve_funds_source (source_type, created_at DESC),
+    INDEX idx_reserve_funds_entry (entry_type, created_at DESC),
+    INDEX idx_reserve_funds_reference (reference_id),
+    CONSTRAINT chk_reserve_amount_positive CHECK (amount > 0)
+);
+```
+
+#### 📊 View / 集約例
+
+```sql
+-- 日次残高スナップショット生成（バッチ or マテリアライズドビュー）
+SELECT DATE(created_at) AS snapshot_date,
+       MAX(balance_after) AS day_end_balance
+FROM reserve_funds
+GROUP BY DATE(created_at)
+ORDER BY snapshot_date DESC;
+```
+
+#### 🔐 運用ルール
+
+- OUTFLOW はガバナンス可決または安全モード解除フローでのみ許可
+- `amount` 端数は 8 桁固定 (他トークン金額と同一精度)
+- 再分配対象への送金は別トランザクションドメインで記録 (将来 `redistribution_batches` 追加予定)
+
+#### ⚠️ 整合性検査
+
+`Σ(INFLOW.amount) - Σ(OUTFLOW.amount) ± 調整(ADJUSTMENT) = 最新 balance_after` を日次ジョブで検証。乖離 > 0.00000001 の場合インシデントフラグ。
+
 ### 4. ガバナンス機能
 
 #### 🏛️ `council_terms`
+
 評議員任期管理
 
 ```sql
@@ -284,6 +332,7 @@ CREATE TABLE council_terms (
 ```
 
 #### 📜 `proposals`
+
 提案管理
 
 ```sql
@@ -315,6 +364,7 @@ CREATE TABLE proposals (
 ```
 
 #### 🗳️ `votes`
+
 投票記録
 
 ```sql
@@ -341,6 +391,7 @@ CREATE TABLE votes (
 ### 5. システム管理・監査
 
 #### 🔍 `oracle_feeds`
+
 外部データフィード
 
 ```sql
@@ -361,6 +412,7 @@ CREATE TABLE oracle_feeds (
 ```
 
 #### ⚙️ `system_parameters`
+
 システムパラメータ管理
 
 ```sql
@@ -380,6 +432,7 @@ CREATE TABLE system_parameters (
 ```
 
 #### 📊 `adjustment_logs`
+
 パラメータ調整ログ
 
 ```sql
@@ -438,6 +491,7 @@ system_parameters (1) ----< adjustment_logs (M)
 ### パフォーマンス最適化インデックス
 
 #### 📈 高頻度クエリ対応
+
 ```sql
 -- ユーザー活動スコア検索（日次報酬計算用）
 CREATE INDEX idx_user_activities_score_date ON user_activities(activity_date, total_activity_score DESC);
@@ -455,6 +509,7 @@ WHERE current_balance > 100.0 AND collection_exempt = FALSE;
 ```
 
 #### 🔍 分析・レポート用
+
 ```sql
 -- 月次報酬分析用
 CREATE INDEX idx_reward_monthly ON reward_history(DATE_FORMAT(created_at, '%Y-%m'), reward_amount DESC);
@@ -576,6 +631,7 @@ GROUP BY DATE_FORMAT(created_at, '%Y-%m');
 ### REST API エンドポイント対応
 
 #### 💰 SFR発行 API
+
 ```http
 POST /api/v1/sfr/issue
 Content-Type: application/json
@@ -590,6 +646,7 @@ Content-Type: application/json
 **対応テーブル**: `user_activities`, `user_evaluations`, `reward_history`
 
 #### 💸 SFR徴収 API
+
 ```http
 POST /api/v1/sfr/collect
 Content-Type: application/json
@@ -603,6 +660,7 @@ Content-Type: application/json
 **対応テーブル**: `user_balances`, `fee_collections`, `burn_decisions`
 
 #### 📊 残高照会 API
+
 ```http
 GET /api/v1/sfr/balance/{user_id}
 
@@ -619,6 +677,7 @@ Response:
 **対応テーブル**: `user_balances`
 
 #### 📈 統計情報 API
+
 ```http
 GET /api/v1/sfr/stats
 
@@ -640,6 +699,7 @@ Response:
 ### データ整合性制約
 
 #### ✅ ビジネスルール制約
+
 ```sql
 -- 残高非負制約
 CONSTRAINT chk_user_balance_non_negative 
@@ -659,6 +719,7 @@ CHECK (issued_amount <= total_limit);
 ```
 
 #### 🔒 アクセス制御
+
 ```sql
 -- 読み取り専用ユーザー（分析用）
 CREATE USER 'sfr_analyst'@'%' IDENTIFIED BY 'secure_password';
@@ -674,11 +735,13 @@ GRANT SELECT, INSERT ON sfr_crypto.fee_collections TO 'sfr_api'@'%';
 ### 監査・ログ機能
 
 #### 📝 変更追跡
+
 - `balance_history`: 全残高変動の追跡
 - `adjustment_logs`: システムパラメータ変更ログ
 - `created_at`, `updated_at`: 全テーブルでタイムスタンプ管理
 
 #### 🚨 異常検知
+
 ```sql
 -- 異常な残高変動検知
 CREATE VIEW suspicious_transactions AS
@@ -698,6 +761,7 @@ WHERE ABS(bh.amount) > (
 ### 定期メンテナンス
 
 #### 🗂️ データアーカイブ
+
 ```sql
 -- 1年以上前の履歴データアーカイブ
 CREATE TABLE balance_history_archive LIKE balance_history;
@@ -707,6 +771,7 @@ WHERE created_at < DATE_SUB(CURDATE(), INTERVAL 1 YEAR);
 ```
 
 #### 📊 統計情報更新
+
 ```sql
 -- 日次統計更新
 CALL update_daily_stats(CURDATE());
