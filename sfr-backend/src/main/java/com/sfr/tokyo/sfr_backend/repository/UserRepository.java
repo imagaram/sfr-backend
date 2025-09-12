@@ -51,4 +51,18 @@ public interface UserRepository extends JpaRepository<User, UUID> {
      * マイナンバー認証状態でユーザーを検索
      */
     List<User> findByMyNumberVerifiedTrue();
+
+    /**
+     * マイナンバーサブジェクト（デジタル庁発行識別子）でユーザーを検索
+     */
+    Optional<User> findByMyNumberSubject(String myNumberSubject);
+
+    /**
+     * メールアドレス、姓、名で部分一致検索（管理画面用）
+     */
+    @Query("SELECT u FROM User u WHERE " +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(u.firstname) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+           "LOWER(u.lastname) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<User> findByEmailContainingIgnoreCaseOrFirstnameContainingIgnoreCaseOrLastnameContainingIgnoreCase(@Param("query") String query);
 }

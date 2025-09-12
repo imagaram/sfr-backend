@@ -61,8 +61,14 @@ public class TokenController {
 
             TokenDto.BalanceResponse response = TokenDto.BalanceResponse.builder()
                     .userId(userId)
-                    .balance(userBalance.getCurrentBalance())
-                    .lastUpdated(userBalance.getUpdatedAt())
+                    .currentBalance(userBalance.getCurrentBalance())
+                    .totalEarned(userBalance.getTotalEarned())
+                    .totalSpent(userBalance.getTotalSpent())
+                    .totalCollected(userBalance.getTotalCollected())
+                    .lastCollectionDate(userBalance.getLastCollectionDate())
+                    .collectionExempt(userBalance.getCollectionExempt())
+                    .frozen(userBalance.getFrozen())
+                    .updatedAt(userBalance.getUpdatedAt())
                     .displayBalance(formatBalance(userBalance.getCurrentBalance()))
                     .build();
 
@@ -91,8 +97,14 @@ public class TokenController {
 
             TokenDto.BalanceResponse response = TokenDto.BalanceResponse.builder()
                     .userId(userId)
-                    .balance(userBalance.getCurrentBalance())
-                    .lastUpdated(userBalance.getUpdatedAt())
+                    .currentBalance(userBalance.getCurrentBalance())
+                    .totalEarned(userBalance.getTotalEarned())
+                    .totalSpent(userBalance.getTotalSpent())
+                    .totalCollected(userBalance.getTotalCollected())
+                    .lastCollectionDate(userBalance.getLastCollectionDate())
+                    .collectionExempt(userBalance.getCollectionExempt())
+                    .frozen(userBalance.getFrozen())
+                    .updatedAt(userBalance.getUpdatedAt())
                     .displayBalance(formatBalance(userBalance.getCurrentBalance()))
                     .build();
 

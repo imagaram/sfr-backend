@@ -49,6 +49,9 @@ public class SecurityConfiguration {
                                                                 "/v3/api-docs/**",
                                                                 "/swagger-ui/**")
                                                 .permitAll()
+                                                // パラメータ参照(GET)は認証のみ、更新(PATCH)はADMINロール
+                                                .requestMatchers("/api/governance/parameters/*").hasRole("ADMIN")
+                                                .requestMatchers("/api/governance/parameters").authenticated()
                                                 // openapi-lite プロファイル時は全許可
                                                 .requestMatchers(openApiLite ? "/**" : "/_never_match_").permitAll()
                                                 // それ以外のすべてのリクエストは認証を要求

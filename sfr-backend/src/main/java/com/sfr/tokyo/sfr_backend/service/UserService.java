@@ -87,4 +87,68 @@ public class UserService implements UserDetailsService {
                     return userMapper.toDto(updatedUser);
                 });
     }
+
+    /**
+     * マイナンバーカード認証処理
+     * デジタル認証アプリからの認証情報を使用してユーザーを処理
+     */
+    @Transactional
+    public User processMyNumberAuthentication(com.sfr.tokyo.sfr_backend.dto.MyNumberUserInfo userInfo) {
+        // subject（デジタル庁発行の識別子）でユーザーを検索
+        Optional<User> existingUser = userRepository.findByMyNumberSubject(userInfo.getSubject());
+        
+        if (existingUser.isPresent()) {
+            // 既存ユーザーの場合、認証情報を更新
+            User user = existingUser.get();
+            user.setMyNumberVerified(true);
+            user.setIdVerified(true); // マイナンバー認証は最高レベルの本人確認
+            user.setMyNumberSubject(userInfo.getSubject());
+            user.setLastMyNumberAuthAt(userInfo.getAuthenticatedAt());
+            
+            return userRepository.save(user);
+        } else {
+            // 新規ユーザーの場合、マイナンバー認証付きで作成
+            User newUser = User.builder()
+                    .firstname(userInfo.getGivenName())
+                    .lastname(userInfo.getFamilyName())
+                    .email(generateTempEmail(userInfo.getSubject())) // 仮メールアドレス
+                    .password("") // パスワードは後で設定
+                    .role(com.sfr.tokyo.sfr_backend.user.Role.USER)
+                    .status(com.sfr.tokyo.sfr_backend.user.Status.FAN) // デフォルトはFAN
+                    .idVerified(true)
+                    .myNumberVerified(true)
+                    .myNumberSubject(userInfo.getSubject())
+                    .lastMyNumberAuthAt(userInfo.getAuthenticatedAt())
+                    .build();
+            
+            return userRepository.save(newUser);
+        }
+    }
+
+    /**
+     * マイナンバー認証の解除
+     * 管理者機能として、ユーザーのマイナンバー認証を解除
+     */
+    @Transactional
+    public boolean revokeMyNumberVerification(UUID userId) {
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setMyNumberVerified(false);
+            user.setMyNumberSubject(null);
+            user.setLastMyNumberAuthAt(null);
+            
+            userRepository.save(user);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 仮メールアドレス生成
+     * マイナンバー認証で新規作成されたユーザー用
+     */
+    private String generateTempEmail(String subject) {
+        return "mynumber-" + subject.substring(0, Math.min(8, subject.length())) + "@temp.sfr.tokyo";
+    }
 }

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -31,10 +32,30 @@ public class TokenDto {
 
         @NotNull
         @DecimalMin(value = "0.0", message = "残高は0以上である必要があります")
-        private BigDecimal balance;
+        private BigDecimal currentBalance; // フロントエンドとの整合性のため変更
 
         @NotNull
-        private LocalDateTime lastUpdated;
+        @DecimalMin(value = "0.0", message = "累計獲得額は0以上である必要があります")
+        private BigDecimal totalEarned;
+
+        @NotNull
+        @DecimalMin(value = "0.0", message = "累計使用額は0以上である必要があります")
+        private BigDecimal totalSpent;
+
+        @NotNull
+        @DecimalMin(value = "0.0", message = "累計徴収額は0以上である必要があります")
+        private BigDecimal totalCollected;
+
+        private LocalDate lastCollectionDate;
+
+        @NotNull
+        private Boolean collectionExempt;
+
+        @NotNull
+        private Boolean frozen;
+
+        @NotNull
+        private LocalDateTime updatedAt;
 
         private String displayBalance; // フォーマット済み残高（表示用）
     }

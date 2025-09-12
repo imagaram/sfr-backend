@@ -144,13 +144,14 @@ public class RewardDistribution {
      * トリガータイプ
      */
     public enum TriggerType {
-        AUTOMATIC, // 自動
-        MANUAL, // 手動
-        AI_DECISION, // AI判定
-        COMMUNITY_VOTE, // コミュニティ投票
-        ADMIN_APPROVAL, // 管理者承認
-        SCHEDULED, // スケジュール
-        EVENT_BASED // イベントベース
+    AUTOMATIC, // 自動
+    MANUAL, // 手動
+    AI_DECISION, // AI判定
+    COMMUNITY_VOTE, // コミュニティ投票
+    ADMIN_APPROVAL, // 管理者承認
+    SCHEDULED, // スケジュール
+    EVENT_BASED, // イベントベース
+    SHOP_PURCHASE // ショップ購入
     }
 
     /**

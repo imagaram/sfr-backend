@@ -11,19 +11,35 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 学習空間管理API
+ * 
+ * @deprecated この API は非推奨です。新しい /api/spaces API を使用してください。
+ * @see com.sfr.tokyo.sfr_backend.controller.space.SpaceController
+ * @author SFR Development Team
+ * @version 1.0 (deprecated)
+ * @since 2025-08-20
+ */
 @RestController
 @RequestMapping("/api/learning")
 @RequiredArgsConstructor
 @Slf4j
+@Deprecated
 public class LearningSpaceController {
 
     private final LearningSpaceService learningSpaceService;
 
+    /**
+     * 学習空間作成
+     * 
+     * @deprecated 新しい POST /api/spaces を使用してください
+     */
     @PostMapping("/spaces")
+    @Deprecated
     public ResponseEntity<LearningSpaceCreateResponse> createLearningSpace(
             @Valid @RequestBody LearningSpaceCreateDto dto) {
 
-        log.info("POST /api/learning/spaces - Creating learning space: {}", dto.getName());
+        log.warn("DEPRECATED: POST /api/learning/spaces - Use POST /api/spaces instead. Creating learning space: {}", dto.getName());
 
         try {
             LearningSpaceCreateResponse response = learningSpaceService.createLearningSpace(dto);
@@ -34,10 +50,16 @@ public class LearningSpaceController {
         }
     }
 
+    /**
+     * 学習空間設定取得
+     * 
+     * @deprecated 新しい GET /api/spaces/{id}/config を使用してください
+     */
     @GetMapping("/spaces/{id}/config")
+    @Deprecated
     public ResponseEntity<LearningModeConfigDto> getConfig(@PathVariable Long id) {
 
-        log.info("GET /api/learning/spaces/{}/config - Getting config", id);
+        log.warn("DEPRECATED: GET /api/learning/spaces/{}/config - Use GET /api/spaces/{}/config instead. Getting config for space: {}", id, id, id);
 
         try {
             LearningModeConfigDto config = learningSpaceService.getConfig(id);
@@ -48,12 +70,18 @@ public class LearningSpaceController {
         }
     }
 
+    /**
+     * 学習空間設定更新
+     * 
+     * @deprecated 新しい PUT /api/spaces/{id}/config を使用してください
+     */
     @PutMapping("/spaces/{id}/config")
+    @Deprecated
     public ResponseEntity<Void> updateConfig(
             @PathVariable Long id,
             @Valid @RequestBody LearningModeConfigDto dto) {
 
-        log.info("PUT /api/learning/spaces/{}/config - Updating config", id);
+        log.warn("DEPRECATED: PUT /api/learning/spaces/{}/config - Use PUT /api/spaces/{}/config instead. Updating config for space: {}", id, id, id);
 
         try {
             learningSpaceService.updateConfig(id, dto);
